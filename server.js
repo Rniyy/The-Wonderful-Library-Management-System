@@ -1,0 +1,63 @@
+'use strict';
+
+const http = require('http');
+const fs = require('fs');
+const path = require('path');
+const url = require('url');
+
+const { Router } = require('./src/router');
+const bookRoutes = require('./src/routes/books');
+const customerRoutes = require('./src/routes/customers');
+const transactionRoutes = require('./src/routes/transactions');
+
+const PORT = process.env.PORT || 3000;
+const PUBLIC_DIR = path.join(__dirname, 'public');
+
+const MIME_TYPES = {
+  '.html': 'text/html; charset=utf-8',
+  '.css': 'text/css; charset=utf-8',
+  '.js': 'application/javascript; charset=utf-8',
+  '.json': 'application/json; charset=utf-8',
+  '.svg': 'image/svg+xml',
+  '.png': 'image/png',
+  '.ico': 'image/x-icon',
+};
+
+const router = new Router();
+bookRoutes.register(router);
+customerRoutes.register(router);
+transactionRoutes.register(router);
+
+function serveStatic(req, res, urlPath) {
+  let filePath = urlPath === '/' ? '/index.html' : urlPath;
+  const resolved = path.join(PUBLIC_DIR, filePath);
+
+  // Prevent path traversal outside the public directory.
+  if (!resolved.startsWith(PUBLIC_DIR)) {
+    res.writeHead(403);
+    return res.end('Forbidden');
+  }
+
+  fs.readFile(resolved, (err, content) => {
+    if (err) {
+      res.writeHead(404, { 'Content-Type': 'text/plain' });
+      return res.end('Not found');
+    }
+    const ext = path.extname(resolved);
+    res.writeHead(200, { 'Content-Type': MIME_TYPES[ext] || 'application/octet-stream' });
+    res.end(content);
+  });
+}
+
+const server = http.createServer(async (req, res) => {
+  const { pathname } = url.parse(req.url);
+
+  const handled = await router.handle(req, res, pathname);
+  if (handled) return;
+
+  serveStatic(req, res, pathname);
+});
+
+server.listen(PORT, () => {
+  console.log(`Library Management System running at http://localhost:${PORT}`);
+});

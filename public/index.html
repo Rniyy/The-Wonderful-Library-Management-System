@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>The Library — Circulation Desk</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <div class="drawer-rail" aria-hidden="true"></div>
+
+  <header class="masthead">
+    <div class="masthead-inner">
+      <p class="eyebrow">Est. locally &middot; Circulation System v2</p>
+      <h1>The Library</h1>
+      <p class="tagline">Catalog, members, and circulation — under one roof.</p>
+    </div>
+  </header>
+
+  <nav class="drawer-nav" role="tablist" aria-label="Sections">
+    <button class="drawer-tab is-active" data-tab="books" role="tab" aria-selected="true">
+      <span class="drawer-label">Catalog</span>
+      <span class="drawer-count" id="count-books">0</span>
+    </button>
+    <button class="drawer-tab" data-tab="customers" role="tab" aria-selected="false">
+      <span class="drawer-label">Members</span>
+      <span class="drawer-count" id="count-customers">0</span>
+    </button>
+    <button class="drawer-tab" data-tab="transactions" role="tab" aria-selected="false">
+      <span class="drawer-label">Circulation</span>
+      <span class="drawer-count" id="count-transactions">0</span>
+    </button>
+  </nav>
+
+  <main class="stage">
+
+    <!-- BOOKS -->
+    <section class="panel is-active" id="panel-books" role="tabpanel">
+      <form class="entry-form" id="form-book">
+        <h2>Add to catalog</h2>
+        <div class="field-row">
+          <label>Title<input type="text" name="title" placeholder="The Left Hand of Darkness" required /></label>
+          <label>Author<input type="text" name="author" placeholder="Ursula K. Le Guin" /></label>
+          <button type="submit" class="stamp-button">File Card</button>
+        </div>
+        <p class="form-error" id="error-book" role="alert"></p>
+      </form>
+
+      <div class="card-grid" id="grid-books"></div>
+      <p class="empty-note" id="empty-books" hidden>The catalog drawer is empty. Add the first title above.</p>
+    </section>
+
+    <!-- CUSTOMERS -->
+    <section class="panel" id="panel-customers" role="tabpanel">
+      <form class="entry-form" id="form-customer">
+        <h2>Enroll a member</h2>
+        <div class="field-row">
+          <label>Name<input type="text" name="name" placeholder="Jordan Alvarez" required /></label>
+          <label>Email<input type="email" name="email" placeholder="optional" /></label>
+          <button type="submit" class="stamp-button">Issue Card</button>
+        </div>
+        <p class="form-error" id="error-customer" role="alert"></p>
+      </form>
+
+      <div class="card-grid" id="grid-customers"></div>
+      <p class="empty-note" id="empty-customers" hidden>No members enrolled yet.</p>
+    </section>
+
+    <!-- TRANSACTIONS -->
+    <section class="panel" id="panel-transactions" role="tabpanel">
+      <form class="entry-form" id="form-transaction">
+        <h2>Circulation desk</h2>
+        <div class="field-row">
+          <label>Book ID<input type="number" name="bookId" min="1" required /></label>
+          <label>Member ID<input type="number" name="customerId" min="1" required /></label>
+          <div class="button-pair">
+            <button type="submit" class="stamp-button" data-action="issue">Stamp Out</button>
+            <button type="submit" class="stamp-button stamp-button--ghost" data-action="return">Stamp In</button>
+          </div>
+        </div>
+        <p class="form-error" id="error-transaction" role="alert"></p>
+      </form>
+
+      <table class="ledger" id="ledger-table">
+        <thead>
+          <tr><th>#</th><th>Type</th><th>Book</th><th>Member</th><th>When</th></tr>
+        </thead>
+        <tbody id="ledger-body"></tbody>
+      </table>
+      <p class="empty-note" id="empty-transactions" hidden>No circulation activity recorded yet.</p>
+    </section>
+
+  </main>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="/app.js"></script>
+</body>
+</html>
