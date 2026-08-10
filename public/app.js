@@ -126,7 +126,8 @@ function renderBooks() {
 
   filtered.forEach((book, i) => {
     const card = document.createElement('article');
-    card.className = 'index-card';
+    const due = dueDateInfo(book);
+    card.className = 'index-card' + (due?.tier === 'late' ? ' is-overdue' : '');
     card.style.animationDelay = `${Math.min(i, 12) * 35}ms`;
     card.innerHTML = `
       <span class="spine" style="background:${spineColorFor(book.id, book.title)}"></span>
@@ -137,6 +138,12 @@ function renderBooks() {
       <span class="status-stamp ${book.isIssued ? 'issued' : 'available'}">
         ${book.isIssued ? 'Issued' : 'Available'}
       </span>
+      ${due ? `
+        <div class="due-badge due-${due.tier}">
+          <span class="due-dot"></span>${due.label}
+        </div>
+        <div class="due-progress"><div class="due-progress-fill due-${due.tier}" style="width:${due.progress}%"></div></div>
+      ` : ''}
       <div class="card-actions">
         <button data-remove-book="${book.id}">Withdraw</button>
       </div>
@@ -191,11 +198,17 @@ function renderTransactions() {
   for (const t of state.transactions) {
     const row = document.createElement('tr');
     const when = new Date(t.timestamp).toLocaleString();
+    const dueCell = t.type === 'ISSUE' && t.dueDate
+      ? new Date(t.dueDate).toLocaleDateString()
+      : t.type === 'RETURN' && t.wasOverdue
+        ? '<span class="late-tag">Late</span>'
+        : '\u2014';
     row.innerHTML = `
       <td>${t.id}</td>
       <td class="${t.type === 'ISSUE' ? 'type-issue' : 'type-return'}">${t.type}</td>
       <td>${escapeHtml(bookTitle(t.bookId))}</td>
       <td>${escapeHtml(customerName(t.customerId))}</td>
+      <td>${dueCell}</td>
       <td>${when}</td>
     `;
     body.appendChild(row);
@@ -222,6 +235,32 @@ function renderStats() {
     el.textContent = value;
     prevStats[id] = value;
   }
+}
+
+const LOAN_DAYS = 14;
+function dueDateInfo(book) {
+  if (!book.isIssued || !book.dueDate) return null;
+  const due = new Date(book.dueDate);
+  const now = new Date();
+  const msLeft = due - now;
+  const daysLeft = Math.ceil(msLeft / (1000 * 60 * 60 * 24));
+  const overdue = msLeft < 0;
+  const elapsedRatio = Math.min(1, Math.max(0, 1 - msLeft / (LOAN_DAYS * 24 * 60 * 60 * 1000)));
+
+  let label;
+  let tier; // 'ok' | 'soon' | 'late'
+  if (overdue) {
+    const daysLate = Math.abs(daysLeft);
+    label = daysLate <= 1 ? 'Overdue' : `Overdue \u00b7 ${daysLate}d`;
+    tier = 'late';
+  } else if (daysLeft <= 3) {
+    label = daysLeft <= 1 ? 'Due today' : `Due in ${daysLeft}d`;
+    tier = 'soon';
+  } else {
+    label = `Due in ${daysLeft}d`;
+    tier = 'ok';
+  }
+  return { label, tier, progress: Math.round(elapsedRatio * 100) };
 }
 
 function escapeHtml(str) {

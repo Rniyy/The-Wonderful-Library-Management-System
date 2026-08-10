@@ -398,6 +398,70 @@ body {
 .status-stamp.available { color: var(--stamp-green); }
 .status-stamp.issued { color: var(--stamp-red); }
 
+/* -------------------- due date badge & progress -------------------- */
+.due-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  margin-top: 10px;
+}
+.due-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  flex: none;
+}
+.due-badge.due-ok { color: #6b6142; }
+.due-badge.due-soon { color: #A87C2E; }
+.due-badge.due-late { color: var(--stamp-red); }
+.due-badge.due-late .due-dot { animation: dot-pulse 1.2s ease-in-out infinite; }
+@keyframes dot-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(1.4); }
+}
+
+.due-progress {
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(0,0,0,0.12);
+  margin-top: 6px;
+  overflow: hidden;
+}
+.due-progress-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+.due-progress-fill.due-ok { background: var(--stamp-green); }
+.due-progress-fill.due-soon { background: #A87C2E; }
+.due-progress-fill.due-late { background: var(--stamp-red); }
+
+.index-card.is-overdue {
+  animation: card-in 0.4s cubic-bezier(0.22, 1, 0.36, 1) forwards, overdue-glow 2.2s ease-in-out infinite;
+}
+@keyframes overdue-glow {
+  0%, 100% { box-shadow: 0 6px 0 -2px var(--paper-shadow), 0 8px 14px rgba(0,0,0,0.22), 0 0 0 rgba(192,113,88,0); }
+  50% { box-shadow: 0 6px 0 -2px var(--paper-shadow), 0 8px 14px rgba(0,0,0,0.22), 0 0 16px rgba(192,113,88,0.55); }
+}
+
+.late-tag {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--stamp-red);
+  border: 1px solid var(--stamp-red);
+  border-radius: 3px;
+  padding: 1px 6px;
+}
+
 .card-actions {
   display: flex;
   gap: 8px;

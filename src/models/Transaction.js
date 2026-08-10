@@ -5,6 +5,7 @@ const Book = require('./Book');
 const Customer = require('./Customer');
 
 const store = new Store('transactions.json');
+const LOAN_DAYS = 14;
 
 const Transaction = {
   getAll() {
@@ -15,7 +16,7 @@ const Transaction = {
     return store.all().length;
   },
 
-  _record(bookId, customerId, type) {
+  _record(bookId, customerId, type, extra = {}) {
     const transactions = store.all();
     const transaction = {
       id: store.nextId(transactions),
@@ -23,6 +24,7 @@ const Transaction = {
       customerId,
       type,
       timestamp: new Date().toISOString(),
+      ...extra,
     };
     transactions.push(transaction);
     store.save(transactions);
@@ -38,8 +40,9 @@ const Transaction = {
     const customer = Customer.getById(customerId);
     if (!customer) throw { status: 404, message: `Customer ${customerId} not found.` };
 
-    Book.setIssued(bookId, true);
-    return this._record(bookId, customerId, 'ISSUE');
+    const dueDate = new Date(Date.now() + LOAN_DAYS * 24 * 60 * 60 * 1000).toISOString();
+    Book.setIssued(bookId, true, dueDate);
+    return this._record(bookId, customerId, 'ISSUE', { dueDate });
   },
 
   /** Returns a book. Throws a {status, message} error on failure. */
@@ -48,8 +51,9 @@ const Transaction = {
     if (!book) throw { status: 404, message: `Book ${bookId} not found.` };
     if (!book.isIssued) throw { status: 409, message: `Book "${book.title}" was not issued.` };
 
+    const wasOverdue = Book.isOverdue(book);
     Book.setIssued(bookId, false);
-    return this._record(bookId, customerId, 'RETURN');
+    return this._record(bookId, customerId, 'RETURN', { wasOverdue });
   },
 };
 

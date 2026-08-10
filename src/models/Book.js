@@ -20,6 +20,7 @@ const Book = {
       author: String(author || 'Unknown').trim(),
       cover: cover ? String(cover) : null,
       isIssued: false,
+      dueDate: null,
     };
     books.push(book);
     store.save(books);
@@ -43,8 +44,12 @@ const Book = {
     return removed;
   },
 
-  setIssued(id, isIssued) {
-    return this.update(id, { isIssued });
+  setIssued(id, isIssued, dueDate = null) {
+    return this.update(id, { isIssued, dueDate: isIssued ? dueDate : null });
+  },
+
+  isOverdue(book) {
+    return Boolean(book.isIssued && book.dueDate && new Date(book.dueDate) < new Date());
   },
 };
 
