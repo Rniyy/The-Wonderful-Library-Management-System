@@ -1,6 +1,16 @@
 'use strict';
 
 const state = { books: [], customers: [], transactions: [] };
+const search = { books: '', customers: '' };
+const prevStats = {};
+
+const SPINE_COLORS = ['#C9A227', '#B24B34', '#3E7A5B', '#5C7FB2', '#8A5FA8', '#C97A3D'];
+function spineColorFor(id, title) {
+  const str = `${id}:${title}`;
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) hash = (hash * 31 + str.charCodeAt(i)) >>> 0;
+  return SPINE_COLORS[hash % SPINE_COLORS.length];
+}
 
 /* -------------------- tabs -------------------- */
 document.querySelectorAll('.drawer-tab').forEach((tab) => {
@@ -45,15 +55,24 @@ async function api(path, options = {}) {
 function renderBooks() {
   const grid = document.getElementById('grid-books');
   const empty = document.getElementById('empty-books');
+  const noResults = document.getElementById('no-results-books');
   document.getElementById('count-books').textContent = state.books.length;
+
+  const q = search.books.trim().toLowerCase();
+  const filtered = q
+    ? state.books.filter((b) => `${b.title} ${b.author}`.toLowerCase().includes(q))
+    : state.books;
 
   grid.innerHTML = '';
   empty.hidden = state.books.length > 0;
+  noResults.hidden = !(state.books.length > 0 && filtered.length === 0);
 
-  for (const book of state.books) {
+  filtered.forEach((book, i) => {
     const card = document.createElement('article');
     card.className = 'index-card';
+    card.style.animationDelay = `${Math.min(i, 12) * 35}ms`;
     card.innerHTML = `
+      <span class="spine" style="background:${spineColorFor(book.id, book.title)}"></span>
       <p class="card-id">NO. ${String(book.id).padStart(4, '0')}</p>
       <h3>${escapeHtml(book.title)}</h3>
       <p class="card-sub">${escapeHtml(book.author || 'Unknown author')}</p>
@@ -65,21 +84,30 @@ function renderBooks() {
       </div>
     `;
     grid.appendChild(card);
-  }
+  });
 }
 
 function renderCustomers() {
   const grid = document.getElementById('grid-customers');
   const empty = document.getElementById('empty-customers');
+  const noResults = document.getElementById('no-results-customers');
   document.getElementById('count-customers').textContent = state.customers.length;
+
+  const q = search.customers.trim().toLowerCase();
+  const filtered = q
+    ? state.customers.filter((c) => `${c.name} ${c.email}`.toLowerCase().includes(q))
+    : state.customers;
 
   grid.innerHTML = '';
   empty.hidden = state.customers.length > 0;
+  noResults.hidden = !(state.customers.length > 0 && filtered.length === 0);
 
-  for (const customer of state.customers) {
+  filtered.forEach((customer, i) => {
     const card = document.createElement('article');
     card.className = 'index-card';
+    card.style.animationDelay = `${Math.min(i, 12) * 35}ms`;
     card.innerHTML = `
+      <span class="spine" style="background:${spineColorFor(customer.id, customer.name)}"></span>
       <p class="card-id">MEMBER ${String(customer.id).padStart(4, '0')}</p>
       <h3>${escapeHtml(customer.name)}</h3>
       <p class="card-sub">${escapeHtml(customer.email || 'No email on file')}</p>
@@ -88,7 +116,7 @@ function renderCustomers() {
       </div>
     `;
     grid.appendChild(card);
-  }
+  });
 }
 
 function renderTransactions() {
@@ -116,6 +144,28 @@ function renderTransactions() {
   }
 }
 
+function renderStats() {
+  const available = state.books.filter((b) => !b.isIssued).length;
+  const issued = state.books.filter((b) => b.isIssued).length;
+  const values = {
+    'stat-total-books': state.books.length,
+    'stat-available': available,
+    'stat-issued': issued,
+    'stat-members': state.customers.length,
+    'stat-transactions': state.transactions.length,
+  };
+  for (const [id, value] of Object.entries(values)) {
+    const el = document.getElementById(id);
+    if (prevStats[id] !== undefined && prevStats[id] !== value) {
+      el.classList.remove('is-bumped');
+      void el.offsetWidth; // restart animation
+      el.classList.add('is-bumped');
+    }
+    el.textContent = value;
+    prevStats[id] = value;
+  }
+}
+
 function escapeHtml(str) {
   const div = document.createElement('div');
   div.textContent = String(str);
@@ -135,6 +185,35 @@ async function loadAll() {
   renderBooks();
   renderCustomers();
   renderTransactions();
+  renderStats();
+}
+
+/* -------------------- search -------------------- */
+document.getElementById('search-books').addEventListener('input', (e) => {
+  search.books = e.target.value;
+  renderBooks();
+});
+document.getElementById('search-customers').addEventListener('input', (e) => {
+  search.customers = e.target.value;
+  renderCustomers();
+});
+
+/* -------------------- stamp slam effect -------------------- */
+function playStamp(type) {
+  const overlay = document.getElementById('stamp-overlay');
+  const mark = document.getElementById('stamp-mark');
+  mark.textContent = type === 'ISSUE' ? 'Issued' : 'Returned';
+  mark.className = `stamp-mark ${type === 'ISSUE' ? 'type-issue' : 'type-return'}`;
+
+  overlay.classList.remove('is-playing');
+  void overlay.offsetWidth; // restart animation
+  overlay.classList.add('is-playing');
+
+  document.body.classList.remove('is-shaking');
+  void document.body.offsetWidth;
+  document.body.classList.add('is-shaking');
+
+  setTimeout(() => overlay.classList.remove('is-playing'), 700);
 }
 
 /* -------------------- form: add book -------------------- */
@@ -191,6 +270,7 @@ document.getElementById('form-transaction').addEventListener('submit', async (e)
       body: JSON.stringify({ bookId, customerId }),
     });
     form.reset();
+    playStamp(action === 'issue' ? 'ISSUE' : 'RETURN');
     showToast(action === 'issue' ? 'Stamped out.' : 'Stamped in.');
     await loadAll();
   } catch (err) {

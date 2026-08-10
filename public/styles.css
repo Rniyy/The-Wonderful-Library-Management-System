@@ -120,6 +120,57 @@ body {
 }
 .drawer-tab.is-active .drawer-count { background: rgba(43,36,23,0.12); }
 
+/* -------------------- stats strip -------------------- */
+.stats-strip {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0;
+  max-width: 780px;
+  margin: 22px auto 0;
+  padding: 0 16px;
+}
+.stat {
+  flex: 1 1 120px;
+  text-align: center;
+  padding: 10px 12px;
+  border-right: 1px solid rgba(201, 162, 39, 0.2);
+}
+.stat:last-child { border-right: none; }
+.stat-value {
+  display: block;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.7rem;
+  color: var(--brass);
+  font-variant-numeric: tabular-nums;
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.stat-value.is-bumped { transform: scale(1.25); }
+.stat-label {
+  display: block;
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+  margin-top: 2px;
+}
+
+/* -------------------- search row -------------------- */
+.search-row { margin-bottom: 16px; }
+.search-row input {
+  width: 100%;
+  font-family: var(--font-mono);
+  font-size: 13.5px;
+  padding: 10px 14px;
+  border-radius: 20px;
+  border: 1px solid rgba(201, 162, 39, 0.3);
+  background: var(--bg-panel);
+  color: var(--ink);
+}
+.search-row input::placeholder { color: var(--ink-dim); }
+.search-row input:focus-visible { outline: 2px solid var(--brass); outline-offset: 1px; }
+
 /* -------------------- stage / panels -------------------- */
 .stage {
   max-width: 960px;
@@ -221,9 +272,27 @@ body {
   background: var(--paper);
   color: var(--text-on-paper);
   border-radius: var(--radius-card);
-  padding: 18px 16px 16px;
+  padding: 18px 16px 16px 20px;
   box-shadow: 0 6px 0 -2px var(--paper-shadow), 0 10px 16px rgba(0,0,0,0.35);
   font-family: var(--font-mono);
+  overflow: hidden;
+  opacity: 0;
+  animation: card-in 0.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+.index-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 6px 0 -2px var(--paper-shadow), 0 16px 22px rgba(0,0,0,0.45);
+}
+.index-card .spine {
+  position: absolute;
+  top: 0; left: 0;
+  width: 6px;
+  height: 100%;
+}
+@keyframes card-in {
+  from { opacity: 0; transform: translateY(10px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
 }
 .index-card::before {
   content: "";
@@ -344,6 +413,51 @@ body {
 }
 .toast.is-visible { opacity: 1; transform: translateX(-50%) translateY(0); }
 .toast.is-error { background: var(--stamp-red); color: var(--paper); }
+
+/* -------------------- stamp slam overlay -------------------- */
+.stamp-overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 999;
+  opacity: 0;
+}
+.stamp-overlay.is-playing { opacity: 1; }
+.stamp-mark {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(3rem, 12vw, 7rem);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 14px 46px;
+  border: 6px solid currentColor;
+  border-radius: 10px;
+  transform: scale(3) rotate(-8deg);
+  opacity: 0;
+  filter: blur(1px);
+  text-shadow: 0 0 18px currentColor;
+}
+.stamp-mark.type-issue { color: var(--stamp-red); }
+.stamp-mark.type-return { color: var(--stamp-green); }
+.stamp-overlay.is-playing .stamp-mark {
+  animation: stamp-slam 0.55s cubic-bezier(0.2, 0.9, 0.3, 1.2) forwards;
+}
+@keyframes stamp-slam {
+  0%   { transform: scale(3.4) rotate(-10deg); opacity: 0; }
+  55%  { transform: scale(0.92) rotate(-6deg); opacity: 1; }
+  70%  { transform: scale(1.05) rotate(-6deg); }
+  100% { transform: scale(1) rotate(-6deg); opacity: 0; transition: opacity 0.35s ease 0.45s; }
+}
+body.is-shaking { animation: shake 0.4s ease; }
+@keyframes shake {
+  10%, 90% { transform: translateX(-1px); }
+  20%, 80% { transform: translateX(2px); }
+  30%, 50%, 70% { transform: translateX(-4px); }
+  40%, 60% { transform: translateX(4px); }
+}
 
 /* -------------------- responsive -------------------- */
 @media (max-width: 560px) {

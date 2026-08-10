@@ -35,6 +35,14 @@
     </button>
   </nav>
 
+  <div class="stats-strip" id="stats-strip">
+    <div class="stat"><span class="stat-value" id="stat-total-books">0</span><span class="stat-label">Titles</span></div>
+    <div class="stat"><span class="stat-value" id="stat-available">0</span><span class="stat-label">Available</span></div>
+    <div class="stat"><span class="stat-value" id="stat-issued">0</span><span class="stat-label">Issued</span></div>
+    <div class="stat"><span class="stat-value" id="stat-members">0</span><span class="stat-label">Members</span></div>
+    <div class="stat"><span class="stat-value" id="stat-transactions">0</span><span class="stat-label">Total Circulation</span></div>
+  </div>
+
   <main class="stage">
 
     <!-- BOOKS -->
@@ -49,8 +57,12 @@
         <p class="form-error" id="error-book" role="alert"></p>
       </form>
 
+      <div class="search-row">
+        <input type="search" id="search-books" placeholder="Search catalog by title or author&hellip;" />
+      </div>
       <div class="card-grid" id="grid-books"></div>
       <p class="empty-note" id="empty-books" hidden>The catalog drawer is empty. Add the first title above.</p>
+      <p class="empty-note" id="no-results-books" hidden>No cards match that search.</p>
     </section>
 
     <!-- CUSTOMERS -->
@@ -65,8 +77,12 @@
         <p class="form-error" id="error-customer" role="alert"></p>
       </form>
 
+      <div class="search-row">
+        <input type="search" id="search-customers" placeholder="Search members by name or email&hellip;" />
+      </div>
       <div class="card-grid" id="grid-customers"></div>
       <p class="empty-note" id="empty-customers" hidden>No members enrolled yet.</p>
+      <p class="empty-note" id="no-results-customers" hidden>No cards match that search.</p>
     </section>
 
     <!-- TRANSACTIONS -->
@@ -96,6 +112,10 @@
   </main>
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <div class="stamp-overlay" id="stamp-overlay" aria-hidden="true">
+    <div class="stamp-mark" id="stamp-mark">STAMPED</div>
+  </div>
 
   <script src="/app.js"></script>
 </body>
