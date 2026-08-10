@@ -12,12 +12,13 @@ const Book = {
     return store.all().find((b) => b.id === id) || null;
   },
 
-  create({ title, author }) {
+  create({ title, author, cover }) {
     const books = store.all();
     const book = {
       id: store.nextId(books),
       title: String(title).trim(),
       author: String(author || 'Unknown').trim(),
+      cover: cover ? String(cover) : null,
       isIssued: false,
     };
     books.push(book);

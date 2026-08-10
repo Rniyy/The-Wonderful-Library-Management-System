@@ -15,11 +15,11 @@ function register(router) {
   });
 
   router.post('/api/books', (req, res) => {
-    const { title, author } = req.body;
+    const { title, author, cover } = req.body;
     if (!title || !String(title).trim()) {
       return sendJson(res, 400, { error: 'Title is required.' });
     }
-    const book = Book.create({ title, author });
+    const book = Book.create({ title, author, cover });
     sendJson(res, 201, book);
   });
 

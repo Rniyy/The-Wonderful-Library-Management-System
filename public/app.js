@@ -3,14 +3,71 @@
 const state = { books: [], customers: [], transactions: [] };
 const search = { books: '', customers: '' };
 const prevStats = {};
+let pendingCoverDataUrl = null;
 
-const SPINE_COLORS = ['#C9A227', '#B24B34', '#3E7A5B', '#5C7FB2', '#8A5FA8', '#C97A3D'];
+const SPINE_COLORS = ['#BFA05A', '#C07158', '#5E8C74', '#7C93B8', '#9B84AC', '#C6975E'];
 function spineColorFor(id, title) {
   const str = `${id}:${title}`;
   let hash = 0;
   for (let i = 0; i < str.length; i++) hash = (hash * 31 + str.charCodeAt(i)) >>> 0;
   return SPINE_COLORS[hash % SPINE_COLORS.length];
 }
+
+/* -------------------- cover upload -------------------- */
+const coverInput = document.getElementById('cover-input');
+const coverPreview = document.getElementById('cover-preview');
+const coverPreviewImg = document.getElementById('cover-preview-img');
+const MAX_COVER_BYTES = 2 * 1024 * 1024; // 2MB
+
+const UNSUPPORTED_TYPES = ['image/heic', 'image/heif'];
+
+coverInput.addEventListener('change', () => {
+  const file = coverInput.files[0];
+  const errorEl = document.getElementById('error-book');
+  errorEl.textContent = '';
+  if (!file) return;
+
+  if (file.size > MAX_COVER_BYTES) {
+    errorEl.textContent = 'Cover image is too large (max 2MB).';
+    coverInput.value = '';
+    return;
+  }
+
+  if (UNSUPPORTED_TYPES.includes(file.type) || /\.(heic|heif)$/i.test(file.name)) {
+    errorEl.textContent = 'HEIC/HEIF photos can\u2019t be previewed in the browser \u2014 use a JPG or PNG instead.';
+    coverInput.value = '';
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = () => {
+    pendingCoverDataUrl = reader.result;
+    coverPreviewImg.hidden = false;
+    coverPreviewImg.src = pendingCoverDataUrl;
+    coverPreview.hidden = false;
+  };
+  reader.onerror = () => {
+    errorEl.textContent = 'Could not read that file. Try a different image.';
+    coverInput.value = '';
+  };
+  reader.readAsDataURL(file);
+});
+
+coverPreviewImg.addEventListener('error', () => {
+  if (!pendingCoverDataUrl) return; // src cleared intentionally
+  coverPreviewImg.hidden = true;
+  const errorEl = document.getElementById('error-book');
+  errorEl.textContent = 'That image can\u2019t be displayed by the browser \u2014 try a JPG or PNG.';
+  pendingCoverDataUrl = null;
+  coverInput.value = '';
+  coverPreview.hidden = true;
+});
+
+document.getElementById('cover-clear').addEventListener('click', () => {
+  pendingCoverDataUrl = null;
+  coverInput.value = '';
+  coverPreview.hidden = true;
+});
 
 /* -------------------- tabs -------------------- */
 document.querySelectorAll('.drawer-tab').forEach((tab) => {
@@ -73,6 +130,7 @@ function renderBooks() {
     card.style.animationDelay = `${Math.min(i, 12) * 35}ms`;
     card.innerHTML = `
       <span class="spine" style="background:${spineColorFor(book.id, book.title)}"></span>
+      ${book.cover ? `<div class="card-cover"><img src="${book.cover}" alt="Cover of ${escapeHtml(book.title)}" /></div>` : ''}
       <p class="card-id">NO. ${String(book.id).padStart(4, '0')}</p>
       <h3>${escapeHtml(book.title)}</h3>
       <p class="card-sub">${escapeHtml(book.author || 'Unknown author')}</p>
@@ -226,8 +284,13 @@ document.getElementById('form-book').addEventListener('submit', async (e) => {
   const author = form.author.value.trim();
 
   try {
-    await api('/api/books', { method: 'POST', body: JSON.stringify({ title, author }) });
+    await api('/api/books', {
+      method: 'POST',
+      body: JSON.stringify({ title, author, cover: pendingCoverDataUrl }),
+    });
     form.reset();
+    pendingCoverDataUrl = null;
+    coverPreview.hidden = true;
     showToast('Card filed.');
     await loadAll();
   } catch (err) {

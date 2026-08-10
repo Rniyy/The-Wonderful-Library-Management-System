@@ -52,6 +52,16 @@
         <div class="field-row">
           <label>Title<input type="text" name="title" placeholder="The Left Hand of Darkness" required /></label>
           <label>Author<input type="text" name="author" placeholder="Ursula K. Le Guin" /></label>
+        </div>
+        <div class="field-row">
+          <label class="cover-field">
+            Cover image (optional)
+            <input type="file" name="cover" accept="image/*" id="cover-input" />
+          </label>
+          <div class="cover-preview" id="cover-preview" hidden>
+            <img id="cover-preview-img" alt="Cover preview" />
+            <button type="button" id="cover-clear">Remove</button>
+          </div>
           <button type="submit" class="stamp-button">File Card</button>
         </div>
         <p class="form-error" id="error-book" role="alert"></p>
