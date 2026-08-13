@@ -116,6 +116,10 @@ function currentBorrowerId(bookId) {
   return t ? t.customerId : null;
 }
 
+function customerNameById(id) {
+  return state.customers.find((c) => c.id === id)?.name || `Member ${id}`;
+}
+
 function renderBooks() {
   const grid = document.getElementById('grid-books');
   const empty = document.getElementById('empty-books');
@@ -134,6 +138,8 @@ function renderBooks() {
   filtered.forEach((book, i) => {
     const card = document.createElement('article');
     const due = dueDateInfo(book);
+    const holds = book.holds || [];
+    const isReserved = !book.isIssued && holds.length > 0;
     card.className = 'index-card' + (due?.tier === 'late' ? ' is-overdue' : '');
     card.style.animationDelay = `${Math.min(i, 12) * 35}ms`;
     card.innerHTML = `
@@ -142,14 +148,22 @@ function renderBooks() {
       <p class="card-id">NO. ${String(book.id).padStart(4, '0')}</p>
       <h3>${escapeHtml(book.title)}</h3>
       <p class="card-sub">${escapeHtml(book.author || 'Unknown author')}</p>
-      <span class="status-stamp ${book.isIssued ? 'issued' : 'available'}">
-        ${book.isIssued ? 'Issued' : 'Available'}
+      <span class="status-stamp ${book.isIssued ? 'issued' : isReserved ? 'reserved' : 'available'}">
+        ${book.isIssued ? 'Issued' : isReserved ? 'Reserved' : 'Available'}
       </span>
       ${due ? `
         <div class="due-badge due-${due.tier}">
           <span class="due-dot"></span>${due.label}
         </div>
         <div class="due-progress"><div class="due-progress-fill due-${due.tier}" style="width:${due.progress}%"></div></div>
+      ` : ''}
+      ${holds.length > 0 ? `
+        <div class="hold-list">
+          <p class="hold-list-label">${book.isIssued ? `${holds.length} on hold` : 'Reserved for'}</p>
+          ${holds.map((cid) => `
+            <span class="hold-chip">${escapeHtml(customerNameById(cid))}<button data-cancel-hold="${book.id}:${cid}" aria-label="Cancel hold">&times;</button></span>
+          `).join('')}
+        </div>
       ` : ''}
       <div class="card-actions">
         ${book.isIssued ? `<button data-renew-book="${book.id}" class="card-actions--renew">Renew</button>` : ''}
@@ -380,13 +394,22 @@ document.getElementById('form-transaction').addEventListener('submit', async (e)
   const customerId = Number(form.customerId.value);
 
   try {
-    await api(`/api/transactions/${action}`, {
-      method: 'POST',
-      body: JSON.stringify({ bookId, customerId }),
-    });
-    form.reset();
-    playStamp(action === 'issue' ? 'ISSUE' : 'RETURN');
-    showToast(action === 'issue' ? 'Stamped out.' : 'Stamped in.');
+    if (action === 'hold') {
+      await api(`/api/books/${bookId}/holds`, {
+        method: 'POST',
+        body: JSON.stringify({ customerId }),
+      });
+      form.reset();
+      showToast('Hold placed.');
+    } else {
+      await api(`/api/transactions/${action}`, {
+        method: 'POST',
+        body: JSON.stringify({ bookId, customerId }),
+      });
+      form.reset();
+      playStamp(action === 'issue' ? 'ISSUE' : 'RETURN');
+      showToast(action === 'issue' ? 'Stamped out.' : 'Stamped in.');
+    }
     await loadAll();
   } catch (err) {
     errorEl.textContent = err.message;
@@ -397,6 +420,19 @@ document.getElementById('form-transaction').addEventListener('submit', async (e)
 document.getElementById('grid-books').addEventListener('click', async (e) => {
   const removeId = e.target.dataset.removeBook;
   const renewId = e.target.dataset.renewBook;
+  const cancelHold = e.target.dataset.cancelHold;
+
+  if (cancelHold) {
+    const [bookId, customerId] = cancelHold.split(':');
+    try {
+      await api(`/api/books/${bookId}/holds/${customerId}`, { method: 'DELETE' });
+      showToast('Hold cancelled.');
+      await loadAll();
+    } catch (err) {
+      showToast(err.message, true);
+    }
+    return;
+  }
 
   if (renewId) {
     const bookId = Number(renewId);

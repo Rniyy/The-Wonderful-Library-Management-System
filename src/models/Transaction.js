@@ -47,6 +47,14 @@ const Transaction = {
     const customer = Customer.getById(customerId);
     if (!customer) throw { status: 404, message: `Customer ${customerId} not found.` };
 
+    const holds = book.holds || [];
+    if (holds.length > 0 && holds[0] !== customerId) {
+      throw { status: 409, message: `This book is reserved for another member.` };
+    }
+    if (holds.length > 0 && holds[0] === customerId) {
+      Book.shiftHold(bookId);
+    }
+
     const dueDate = new Date(Date.now() + LOAN_DAYS * 24 * 60 * 60 * 1000).toISOString();
     Book.setIssued(bookId, true, dueDate);
     return this._record(bookId, customerId, 'ISSUE', { dueDate });

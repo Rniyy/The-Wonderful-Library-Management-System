@@ -34,6 +34,18 @@ function register(router) {
     if (!removed) return sendJson(res, 404, { error: 'Book not found.' });
     sendJson(res, 200, { removed: true });
   });
+
+  router.post('/api/books/:id/holds', (req, res) => {
+    const { customerId } = req.body;
+    if (!customerId) return sendJson(res, 400, { error: 'customerId is required.' });
+    const book = Book.addHold(Number(req.params.id), Number(customerId));
+    sendJson(res, 201, book);
+  });
+
+  router.delete('/api/books/:id/holds/:customerId', (req, res) => {
+    const book = Book.removeHold(Number(req.params.id), Number(req.params.customerId));
+    sendJson(res, 200, book);
+  });
 }
 
 module.exports = { register };
