@@ -109,6 +109,13 @@ async function api(path, options = {}) {
 }
 
 /* -------------------- rendering -------------------- */
+function currentBorrowerId(bookId) {
+  // transactions are newest-first; if the book is issued, the most recent
+  // entry for it must be an ISSUE or RENEW, which carries the borrower's id.
+  const t = state.transactions.find((t) => t.bookId === bookId);
+  return t ? t.customerId : null;
+}
+
 function renderBooks() {
   const grid = document.getElementById('grid-books');
   const empty = document.getElementById('empty-books');
@@ -145,6 +152,7 @@ function renderBooks() {
         <div class="due-progress"><div class="due-progress-fill due-${due.tier}" style="width:${due.progress}%"></div></div>
       ` : ''}
       <div class="card-actions">
+        ${book.isIssued ? `<button data-renew-book="${book.id}" class="card-actions--renew">Renew</button>` : ''}
         <button data-remove-book="${book.id}">Withdraw</button>
       </div>
     `;
@@ -200,12 +208,14 @@ function renderTransactions() {
     const when = new Date(t.timestamp).toLocaleString();
     const dueCell = t.type === 'ISSUE' && t.dueDate
       ? new Date(t.dueDate).toLocaleDateString()
-      : t.type === 'RETURN' && t.wasOverdue
-        ? '<span class="late-tag">Late</span>'
-        : '\u2014';
+      : t.type === 'RENEW' && t.dueDate
+        ? `Renewed \u2192 ${new Date(t.dueDate).toLocaleDateString()}`
+        : t.type === 'RETURN' && t.wasOverdue
+          ? `<span class="late-tag">Late \u00b7 $${t.fineAmount.toFixed(2)}</span>`
+          : '\u2014';
     row.innerHTML = `
       <td>${t.id}</td>
-      <td class="${t.type === 'ISSUE' ? 'type-issue' : 'type-return'}">${t.type}</td>
+      <td class="${t.type === 'ISSUE' ? 'type-issue' : t.type === 'RENEW' ? 'type-renew' : 'type-return'}">${t.type}</td>
       <td>${escapeHtml(bookTitle(t.bookId))}</td>
       <td>${escapeHtml(customerName(t.customerId))}</td>
       <td>${dueCell}</td>
@@ -224,6 +234,7 @@ function renderStats() {
     'stat-issued': issued,
     'stat-members': state.customers.length,
     'stat-transactions': state.transactions.length,
+    'stat-fines': state.fines || 0,
   };
   for (const [id, value] of Object.entries(values)) {
     const el = document.getElementById(id);
@@ -232,7 +243,7 @@ function renderStats() {
       void el.offsetWidth; // restart animation
       el.classList.add('is-bumped');
     }
-    el.textContent = value;
+    el.textContent = id === 'stat-fines' ? `$${value.toFixed(2)}` : value;
     prevStats[id] = value;
   }
 }
@@ -271,14 +282,16 @@ function escapeHtml(str) {
 
 /* -------------------- data loading -------------------- */
 async function loadAll() {
-  const [books, customers, transactions] = await Promise.all([
+  const [books, customers, transactions, fines] = await Promise.all([
     api('/api/books'),
     api('/api/customers'),
     api('/api/transactions'),
+    api('/api/transactions/fines'),
   ]);
   state.books = books;
   state.customers = customers;
   state.transactions = transactions;
+  state.fines = fines.outstanding;
   renderBooks();
   renderCustomers();
   renderTransactions();
@@ -382,10 +395,32 @@ document.getElementById('form-transaction').addEventListener('submit', async (e)
 
 /* -------------------- withdraw (delete) buttons -------------------- */
 document.getElementById('grid-books').addEventListener('click', async (e) => {
-  const id = e.target.dataset.removeBook;
-  if (!id) return;
+  const removeId = e.target.dataset.removeBook;
+  const renewId = e.target.dataset.renewBook;
+
+  if (renewId) {
+    const bookId = Number(renewId);
+    const customerId = currentBorrowerId(bookId);
+    if (!customerId) {
+      showToast('Could not determine the current borrower.', true);
+      return;
+    }
+    try {
+      await api('/api/transactions/renew', {
+        method: 'POST',
+        body: JSON.stringify({ bookId, customerId }),
+      });
+      showToast('Renewed \u2014 due date extended.');
+      await loadAll();
+    } catch (err) {
+      showToast(err.message, true);
+    }
+    return;
+  }
+
+  if (!removeId) return;
   try {
-    await api(`/api/books/${id}`, { method: 'DELETE' });
+    await api(`/api/books/${removeId}`, { method: 'DELETE' });
     showToast('Card withdrawn.');
     await loadAll();
   } catch (err) {
