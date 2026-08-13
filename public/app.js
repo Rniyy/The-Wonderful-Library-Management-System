@@ -440,4 +440,44 @@ document.getElementById('grid-customers').addEventListener('click', async (e) =>
   }
 });
 
+/* -------------------- CSV export -------------------- */
+function csvEscape(value) {
+  const str = String(value ?? '');
+  return /[",\n]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str;
+}
+
+document.getElementById('export-csv').addEventListener('click', () => {
+  if (state.transactions.length === 0) {
+    showToast('No circulation activity to export yet.', true);
+    return;
+  }
+
+  const bookTitle = (id) => state.books.find((b) => b.id === id)?.title || `Book ${id}`;
+  const customerName = (id) => state.customers.find((c) => c.id === id)?.name || `Member ${id}`;
+
+  const headers = ['ID', 'Type', 'Book', 'Member', 'Due Date', 'Fine', 'Timestamp'];
+  const rows = state.transactions.map((t) => [
+    t.id,
+    t.type,
+    bookTitle(t.bookId),
+    customerName(t.customerId),
+    t.dueDate ? new Date(t.dueDate).toISOString() : '',
+    t.type === 'RETURN' && t.wasOverdue ? t.fineAmount.toFixed(2) : '',
+    t.timestamp,
+  ]);
+
+  const csv = [headers, ...rows].map((row) => row.map(csvEscape).join(',')).join('\r\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const stamp = new Date().toISOString().slice(0, 10);
+  a.href = url;
+  a.download = `circulation-ledger-${stamp}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast('Ledger exported.');
+});
+
 loadAll().catch((err) => showToast(err.message, true));
