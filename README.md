@@ -1,4 +1,4 @@
-# The Library — Circulation System
+# The Wonderful Library — Management System
 
 A library management system with a REST API and a browser-based UI for
 tracking books, members, and circulation (issue/return) activity.
