@@ -8,9 +8,9 @@ const store = new Store('transactions.json');
 const LOAN_DAYS = 14;
 const FINE_RATE = 0.25; // per day overdue
 
-function daysLate(book) {
-  if (!book.dueDate) return 0;
-  const ms = Date.now() - new Date(book.dueDate).getTime();
+function daysLate(dueDate) {
+  if (!dueDate) return 0;
+  const ms = Date.now() - new Date(dueDate).getTime();
   return Math.max(0, Math.ceil(ms / (24 * 60 * 60 * 1000)));
 }
 
@@ -38,14 +38,17 @@ const Transaction = {
     return transaction;
   },
 
-  /** Issues a book to a customer. Throws a {status, message} error on failure. */
+  /** Issues a copy of a book to a customer. Throws a {status, message} error on failure. */
   issue(bookId, customerId) {
     const book = Book.getById(bookId);
     if (!book) throw { status: 404, message: `Book ${bookId} not found.` };
-    if (book.isIssued) throw { status: 409, message: `Book "${book.title}" is already issued.` };
 
     const customer = Customer.getById(customerId);
     if (!customer) throw { status: 404, message: `Customer ${customerId} not found.` };
+
+    if (Book.availableCount(book) === 0) {
+      throw { status: 409, message: `No copies of "${book.title}" are available.` };
+    }
 
     const holds = book.holds || [];
     if (holds.length > 0 && holds[0] !== customerId) {
@@ -56,42 +59,50 @@ const Transaction = {
     }
 
     const dueDate = new Date(Date.now() + LOAN_DAYS * 24 * 60 * 60 * 1000).toISOString();
-    Book.setIssued(bookId, true, dueDate);
+    Book.issueCopy(bookId, customerId, dueDate);
     return this._record(bookId, customerId, 'ISSUE', { dueDate });
   },
 
-  /** Returns a book. Throws a {status, message} error on failure. */
+  /** Returns a copy of a book. Throws a {status, message} error on failure. */
   return_(bookId, customerId) {
     const book = Book.getById(bookId);
     if (!book) throw { status: 404, message: `Book ${bookId} not found.` };
-    if (!book.isIssued) throw { status: 409, message: `Book "${book.title}" was not issued.` };
 
-    const wasOverdue = Book.isOverdue(book);
-    const lateDays = wasOverdue ? daysLate(book) : 0;
+    const { priorDueDate } = Book.returnCopy(bookId, customerId);
+
+    const wasOverdue = Boolean(priorDueDate && new Date(priorDueDate) < new Date());
+    const lateDays = wasOverdue ? daysLate(priorDueDate) : 0;
     const fineAmount = Math.round(lateDays * FINE_RATE * 100) / 100;
 
-    Book.setIssued(bookId, false);
     return this._record(bookId, customerId, 'RETURN', { wasOverdue, lateDays, fineAmount });
   },
 
-  /** Renews a currently-issued book, pushing its due date out another loan period.
-   *  Throws a {status, message} error on failure. */
+  /** Renews the copy a customer currently has checked out, pushing its due date out
+   *  another loan period. Throws a {status, message} error on failure. */
   renew(bookId, customerId) {
     const book = Book.getById(bookId);
     if (!book) throw { status: 404, message: `Book ${bookId} not found.` };
-    if (!book.isIssued) throw { status: 409, message: `Book "${book.title}" is not currently issued.` };
 
-    const base = Book.isOverdue(book) ? Date.now() : new Date(book.dueDate).getTime();
+    const copy = book.copies.find((c) => c.isIssued && c.customerId === customerId);
+    if (!copy) {
+      throw { status: 409, message: `That member doesn't have a copy of "${book.title}" checked out.` };
+    }
+
+    const base = Book.isCopyOverdue(copy) ? Date.now() : new Date(copy.dueDate).getTime();
     const dueDate = new Date(base + LOAN_DAYS * 24 * 60 * 60 * 1000).toISOString();
-    Book.update(bookId, { dueDate });
+    Book.renewCopy(bookId, customerId, dueDate);
     return this._record(bookId, customerId, 'RENEW', { dueDate });
   },
 
-  /** Total unpaid fines outstanding right now, across all currently-overdue books. */
+  /** Total unpaid fines outstanding right now, across all currently-overdue copies. */
   outstandingFines() {
     return Book.getAll().reduce((sum, book) => {
-      if (!Book.isOverdue(book)) return sum;
-      return sum + Math.round(daysLate(book) * FINE_RATE * 100) / 100;
+      const overdueCopies = book.copies.filter((c) => Book.isCopyOverdue(c));
+      const bookFines = overdueCopies.reduce(
+        (s, c) => s + Math.round(daysLate(c.dueDate) * FINE_RATE * 100) / 100,
+        0
+      );
+      return sum + bookFines;
     }, 0);
   },
 

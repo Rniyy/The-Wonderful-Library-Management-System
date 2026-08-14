@@ -388,6 +388,7 @@ body {
   background: var(--surface);
 }
 .button-pair { display: flex; gap: 10px; flex: 1 1 220px; }
+.copies-field { flex: 0 1 90px; }
 
 .cover-field {
   display: flex;
@@ -469,6 +470,12 @@ body {
   border-color: #D1AE64;
 }
 .stamp-button--hold:hover { background: var(--amber-soft); }
+.stamp-button--renew {
+  background: transparent;
+  color: var(--accent-dark);
+  border-color: var(--accent);
+}
+.stamp-button--renew:hover { background: var(--accent-soft); }
 .stamp-button:focus-visible { outline: 2px solid var(--accent-dark); outline-offset: 2px; }
 
 .form-error {

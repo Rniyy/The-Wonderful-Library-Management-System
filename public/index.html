@@ -74,6 +74,7 @@
         <div class="field-row">
           <label>Title<input type="text" name="title" placeholder="The Left Hand of Darkness" required /></label>
           <label>Author<input type="text" name="author" placeholder="Ursula K. Le Guin" /></label>
+          <label class="copies-field">Copies<input type="number" name="copies" min="1" max="999" value="1" /></label>
         </div>
         <div class="field-row">
           <label class="cover-field">
@@ -127,6 +128,7 @@
           <div class="button-pair">
             <button type="submit" class="stamp-button" data-action="issue">Stamp Out</button>
             <button type="submit" class="stamp-button stamp-button--ghost" data-action="return">Stamp In</button>
+            <button type="submit" class="stamp-button stamp-button--renew" data-action="renew">Renew</button>
             <button type="submit" class="stamp-button stamp-button--hold" data-action="hold">Reserve</button>
           </div>
         </div>

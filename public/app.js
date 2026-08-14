@@ -212,13 +212,6 @@ document.getElementById('logout-btn').addEventListener('click', async () => {
 });
 
 /* -------------------- rendering -------------------- */
-function currentBorrowerId(bookId) {
-  // transactions are newest-first; if the book is issued, the most recent
-  // entry for it must be an ISSUE or RENEW, which carries the borrower's id.
-  const t = state.transactions.find((t) => t.bookId === bookId);
-  return t ? t.customerId : null;
-}
-
 function customerNameById(id) {
   return state.customers.find((c) => c.id === id)?.name || `Member ${id}`;
 }
@@ -242,18 +235,32 @@ function renderBooks() {
     const card = document.createElement('article');
     const due = dueDateInfo(book);
     const holds = book.holds || [];
-    const isReserved = !book.isIssued && holds.length > 0;
+    const available = book.availableCopies;
+    const total = book.totalCopies;
+    const isReserved = available > 0 && holds.length > 0;
+    const isFull = available === 0;
     card.className = 'index-card' + (due?.tier === 'late' ? ' is-overdue' : '');
     card.style.animationDelay = `${Math.min(i, 12) * 35}ms`;
+
+    let statusClass, statusLabel;
+    if (isReserved) {
+      statusClass = 'reserved';
+      statusLabel = 'Reserved';
+    } else if (isFull) {
+      statusClass = 'issued';
+      statusLabel = total > 1 ? 'All Issued' : 'Issued';
+    } else {
+      statusClass = 'available';
+      statusLabel = total > 1 ? `${available}/${total} Available` : 'Available';
+    }
+
     card.innerHTML = `
       <span class="spine" style="background:${spineColorFor(book.id, book.title)}"></span>
       ${book.cover ? `<div class="card-cover"><img src="${book.cover}" alt="Cover of ${escapeHtml(book.title)}" /></div>` : ''}
       <p class="card-id">NO. ${String(book.id).padStart(4, '0')}</p>
       <h3>${escapeHtml(book.title)}</h3>
       <p class="card-sub">${escapeHtml(book.author || 'Unknown author')}</p>
-      <span class="status-stamp ${book.isIssued ? 'issued' : isReserved ? 'reserved' : 'available'}">
-        ${book.isIssued ? 'Issued' : isReserved ? 'Reserved' : 'Available'}
-      </span>
+      <span class="status-stamp ${statusClass}">${statusLabel}</span>
       ${due ? `
         <div class="due-badge due-${due.tier}">
           <span class="due-dot"></span>${due.label}
@@ -262,14 +269,13 @@ function renderBooks() {
       ` : ''}
       ${holds.length > 0 ? `
         <div class="hold-list">
-          <p class="hold-list-label">${book.isIssued ? `${holds.length} on hold` : 'Reserved for'}</p>
+          <p class="hold-list-label">${isFull ? `${holds.length} on hold` : 'Reserved for'}</p>
           ${holds.map((cid) => `
             <span class="hold-chip">${escapeHtml(customerNameById(cid))}<button data-cancel-hold="${book.id}:${cid}" aria-label="Cancel hold">&times;</button></span>
           `).join('')}
         </div>
       ` : ''}
       <div class="card-actions">
-        ${book.isIssued ? `<button data-renew-book="${book.id}" class="card-actions--renew">Renew</button>` : ''}
         <button data-remove-book="${book.id}">Withdraw</button>
       </div>
     `;
@@ -367,8 +373,8 @@ function renderStats() {
 
 const LOAN_DAYS = 14;
 function dueDateInfo(book) {
-  if (!book.isIssued || !book.dueDate) return null;
-  const due = new Date(book.dueDate);
+  if (!book.nextDueDate) return null;
+  const due = new Date(book.nextDueDate);
   const now = new Date();
   const msLeft = due - now;
   const daysLeft = Math.ceil(msLeft / (1000 * 60 * 60 * 24));
@@ -489,11 +495,12 @@ document.getElementById('form-book').addEventListener('submit', async (e) => {
   const form = e.target;
   const title = form.title.value.trim();
   const author = form.author.value.trim();
+  const copies = form.copies.value ? Number(form.copies.value) : 1;
 
   try {
     await api('/api/books', {
       method: 'POST',
-      body: JSON.stringify({ title, author, cover: pendingCoverDataUrl }),
+      body: JSON.stringify({ title, author, cover: pendingCoverDataUrl, copies }),
     });
     form.reset();
     pendingCoverDataUrl = null;
@@ -542,6 +549,13 @@ document.getElementById('form-transaction').addEventListener('submit', async (e)
       });
       form.reset();
       showToast('Hold placed.');
+    } else if (action === 'renew') {
+      await api('/api/transactions/renew', {
+        method: 'POST',
+        body: JSON.stringify({ bookId, customerId }),
+      });
+      form.reset();
+      showToast('Renewed \u2014 due date extended.');
     } else {
       await api(`/api/transactions/${action}`, {
         method: 'POST',
@@ -560,7 +574,6 @@ document.getElementById('form-transaction').addEventListener('submit', async (e)
 /* -------------------- withdraw (delete) buttons -------------------- */
 document.getElementById('grid-books').addEventListener('click', async (e) => {
   const removeId = e.target.dataset.removeBook;
-  const renewId = e.target.dataset.renewBook;
   const cancelHold = e.target.dataset.cancelHold;
 
   if (cancelHold) {
@@ -568,26 +581,6 @@ document.getElementById('grid-books').addEventListener('click', async (e) => {
     try {
       await api(`/api/books/${bookId}/holds/${customerId}`, { method: 'DELETE' });
       showToast('Hold cancelled.');
-      await loadAll();
-    } catch (err) {
-      showToast(err.message, true);
-    }
-    return;
-  }
-
-  if (renewId) {
-    const bookId = Number(renewId);
-    const customerId = currentBorrowerId(bookId);
-    if (!customerId) {
-      showToast('Could not determine the current borrower.', true);
-      return;
-    }
-    try {
-      await api('/api/transactions/renew', {
-        method: 'POST',
-        body: JSON.stringify({ bookId, customerId }),
-      });
-      showToast('Renewed \u2014 due date extended.');
       await loadAll();
     } catch (err) {
       showToast(err.message, true);
