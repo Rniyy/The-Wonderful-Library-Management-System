@@ -157,12 +157,59 @@ async function api(path, options = {}) {
     headers: { 'Content-Type': 'application/json' },
     ...options,
   });
+  if (res.status === 401) {
+    showLoginOverlay();
+    const err = new Error('Please sign in.');
+    err.isAuthError = true;
+    throw err;
+  }
   const data = await res.json().catch(() => null);
   if (!res.ok) {
     throw new Error((data && data.error) || `Request failed (${res.status})`);
   }
   return data;
 }
+
+/* -------------------- staff login -------------------- */
+function showLoginOverlay() {
+  document.getElementById('login-overlay').classList.add('is-visible');
+  document.getElementById('login-password').focus();
+}
+function hideLoginOverlay() {
+  document.getElementById('login-overlay').classList.remove('is-visible');
+}
+
+document.getElementById('login-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const errorEl = document.getElementById('login-error');
+  const passwordInput = document.getElementById('login-password');
+  errorEl.textContent = '';
+
+  try {
+    const res = await fetch('/api/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: passwordInput.value }),
+    });
+    const data = await res.json().catch(() => null);
+    if (!res.ok) throw new Error((data && data.error) || 'Sign-in failed.');
+
+    passwordInput.value = '';
+    hideLoginOverlay();
+    await loadAll();
+  } catch (err) {
+    errorEl.textContent = err.message;
+  }
+});
+
+document.getElementById('logout-btn').addEventListener('click', async () => {
+  try {
+    await fetch('/api/logout', { method: 'POST' });
+  } catch {
+    // ignore network errors on logout — show the login screen regardless
+  }
+  showLoginOverlay();
+});
 
 /* -------------------- rendering -------------------- */
 function currentBorrowerId(bookId) {
@@ -572,4 +619,6 @@ document.getElementById('export-csv').addEventListener('click', () => {
   showToast('Ledger exported.');
 });
 
-loadAll().catch((err) => showToast(err.message, true));
+loadAll().catch((err) => {
+  if (!err.isAuthError) showToast(err.message, true);
+});

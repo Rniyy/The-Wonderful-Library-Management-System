@@ -10,6 +10,17 @@
   <link rel="stylesheet" href="/styles.css" />
 </head>
 <body>
+  <div class="login-overlay" id="login-overlay">
+    <form class="login-card" id="login-form">
+      <p class="eyebrow">Staff sign-in</p>
+      <h2>The Library</h2>
+      <label>Password
+        <input type="password" id="login-password" autocomplete="current-password" required autofocus />
+      </label>
+      <button type="submit" class="stamp-button">Sign In</button>
+      <p class="form-error" id="login-error" role="alert"></p>
+    </form>
+  </div>
   <div class="drawer-rail" aria-hidden="true"></div>
 
   <header class="masthead">
@@ -17,6 +28,7 @@
       <p class="eyebrow">Est. locally &middot; Circulation System v2</p>
       <h1>The Library</h1>
       <p class="tagline">Catalog, members, and circulation — under one roof.</p>
+      <button type="button" class="logout-button" id="logout-btn">Sign out</button>
     </div>
   </header>
 

@@ -5,10 +5,12 @@ const fs = require('fs');
 const path = require('path');
 const url = require('url');
 
-const { Router } = require('./src/router');
+const { Router, sendJson } = require('./src/router');
 const bookRoutes = require('./src/routes/books');
 const customerRoutes = require('./src/routes/customers');
 const transactionRoutes = require('./src/routes/transactions');
+const authRoutes = require('./src/routes/login');
+const { isValidSession, parseCookies } = require('./src/auth');
 
 const PORT = process.env.PORT || 3000;
 const PUBLIC_DIR = path.join(__dirname, 'public');
@@ -24,9 +26,15 @@ const MIME_TYPES = {
 };
 
 const router = new Router();
+authRoutes.register(router);
 bookRoutes.register(router);
 customerRoutes.register(router);
 transactionRoutes.register(router);
+
+// Every /api/* route requires a valid session except login itself.
+// Static files (including index.html) stay public — the frontend shows
+// a login screen and only starts calling protected endpoints once signed in.
+const PUBLIC_API_PATHS = new Set(['/api/login']);
 
 function serveStatic(req, res, urlPath) {
   let filePath = urlPath === '/' ? '/index.html' : urlPath;
@@ -51,6 +59,13 @@ function serveStatic(req, res, urlPath) {
 
 const server = http.createServer(async (req, res) => {
   const { pathname } = url.parse(req.url);
+  req.cookies = parseCookies(req);
+
+  if (pathname.startsWith('/api/') && !PUBLIC_API_PATHS.has(pathname)) {
+    if (!isValidSession(req.cookies.session)) {
+      return sendJson(res, 401, { error: 'Please sign in.' });
+    }
+  }
 
   const handled = await router.handle(req, res, pathname);
   if (handled) return;
