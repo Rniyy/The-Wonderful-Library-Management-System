@@ -69,6 +69,62 @@ document.getElementById('cover-clear').addEventListener('click', () => {
   coverPreview.hidden = true;
 });
 
+/* -------------------- ISBN lookup -------------------- */
+document.getElementById('isbn-lookup-btn').addEventListener('click', async () => {
+  const isbnInput = document.getElementById('isbn-input');
+  const errorEl = document.getElementById('error-book');
+  const btn = document.getElementById('isbn-lookup-btn');
+  errorEl.textContent = '';
+
+  const isbn = isbnInput.value.replace(/[^0-9Xx]/g, '').trim();
+  if (!isbn) {
+    errorEl.textContent = 'Enter an ISBN first.';
+    return;
+  }
+
+  const originalLabel = btn.textContent;
+  btn.textContent = 'Looking up\u2026';
+  btn.disabled = true;
+
+  try {
+    const res = await fetch(
+      `https://openlibrary.org/api/books?bibkeys=ISBN:${encodeURIComponent(isbn)}&format=json&jscmd=data`
+    );
+    if (!res.ok) throw new Error('Lookup service is unavailable right now.');
+    const data = await res.json();
+    const record = data[`ISBN:${isbn}`];
+
+    if (!record) {
+      errorEl.textContent = 'No results for that ISBN.';
+      return;
+    }
+
+    const form = document.getElementById('form-book');
+    if (record.title) form.title.value = record.title;
+    if (record.authors && record.authors.length > 0) {
+      form.author.value = record.authors.map((a) => a.name).join(', ');
+    }
+
+    const coverUrl = record.cover?.large || record.cover?.medium || record.cover?.small;
+    if (coverUrl) {
+      pendingCoverDataUrl = coverUrl;
+      coverPreviewImg.hidden = false;
+      coverPreviewImg.src = coverUrl;
+      coverPreview.hidden = false;
+      coverInput.value = ''; // lookup cover replaces any manual upload
+    }
+
+    showToast('Filled in from ISBN lookup.');
+  } catch (err) {
+    errorEl.textContent = err.message.includes('fetch')
+      ? 'Could not reach the lookup service \u2014 check your connection.'
+      : err.message;
+  } finally {
+    btn.textContent = originalLabel;
+    btn.disabled = false;
+  }
+});
+
 /* -------------------- tabs -------------------- */
 document.querySelectorAll('.drawer-tab').forEach((tab) => {
   tab.addEventListener('click', () => {

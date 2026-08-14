@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>The Wonderful Library — Circulation Desk</title>
+  <title>The Library — Circulation Desk</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
@@ -15,7 +15,7 @@
   <header class="masthead">
     <div class="masthead-inner">
       <p class="eyebrow">Est. locally &middot; Circulation System v2</p>
-      <h1>The Wonderful Library</h1>
+      <h1>The Library</h1>
       <p class="tagline">Catalog, members, and circulation — under one roof.</p>
     </div>
   </header>
@@ -50,6 +50,12 @@
     <section class="panel is-active" id="panel-books" role="tabpanel">
       <form class="entry-form" id="form-book">
         <h2>Add to catalog</h2>
+        <div class="field-row">
+          <label>ISBN lookup
+            <input type="text" id="isbn-input" placeholder="e.g. 9780441172719" inputmode="numeric" />
+          </label>
+          <button type="button" class="stamp-button stamp-button--ghost" id="isbn-lookup-btn">Look Up</button>
+        </div>
         <div class="field-row">
           <label>Title<input type="text" name="title" placeholder="The Left Hand of Darkness" required /></label>
           <label>Author<input type="text" name="author" placeholder="Ursula K. Le Guin" /></label>
