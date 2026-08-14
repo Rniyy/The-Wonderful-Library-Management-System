@@ -45,6 +45,9 @@
       <span class="drawer-label">Circulation</span>
       <span class="drawer-count" id="count-transactions">0</span>
     </button>
+    <button class="drawer-tab" data-tab="leaderboard" role="tab" aria-selected="false">
+      <span class="drawer-label">Leaderboard</span>
+    </button>
   </nav>
 
   <div class="stats-strip" id="stats-strip">
@@ -141,6 +144,22 @@
         <tbody id="ledger-body"></tbody>
       </table>
       <p class="empty-note" id="empty-transactions" hidden>No circulation activity recorded yet.</p>
+    </section>
+
+    <!-- LEADERBOARD -->
+    <section class="panel" id="panel-leaderboard" role="tabpanel">
+      <div class="leaderboard-grid">
+        <div class="leaderboard-column">
+          <h2 class="leaderboard-heading">Most borrowed books</h2>
+          <ol class="leaderboard-list" id="leaderboard-books"></ol>
+          <p class="empty-note" id="empty-leaderboard-books" hidden>No circulation activity yet.</p>
+        </div>
+        <div class="leaderboard-column">
+          <h2 class="leaderboard-heading">Most active members</h2>
+          <ol class="leaderboard-list" id="leaderboard-members"></ol>
+          <p class="empty-note" id="empty-leaderboard-members" hidden>No circulation activity yet.</p>
+        </div>
+      </div>
     </section>
 
   </main>

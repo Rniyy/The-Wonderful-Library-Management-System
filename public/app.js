@@ -391,6 +391,41 @@ function dueDateInfo(book) {
   return { label, tier, progress: Math.round(elapsedRatio * 100) };
 }
 
+function renderLeaderboard() {
+  if (!state.leaderboard) return;
+
+  const renderList = (listId, emptyId, items, labelSuffix) => {
+    const list = document.getElementById(listId);
+    const empty = document.getElementById(emptyId);
+    list.innerHTML = '';
+    empty.hidden = items.length > 0;
+
+    items.forEach((item, i) => {
+      const li = document.createElement('li');
+      li.className = 'leaderboard-item' + (i < 3 ? ` rank-${i + 1}` : '');
+      li.innerHTML = `
+        <span class="leaderboard-rank">${i + 1}</span>
+        <span class="leaderboard-name">${escapeHtml(item.name)}</span>
+        <span class="leaderboard-count">${item.count} ${labelSuffix}</span>
+      `;
+      list.appendChild(li);
+    });
+  };
+
+  renderList(
+    'leaderboard-books',
+    'empty-leaderboard-books',
+    state.leaderboard.books.map((b) => ({ name: b.title, count: b.count })),
+    'loans'
+  );
+  renderList(
+    'leaderboard-members',
+    'empty-leaderboard-members',
+    state.leaderboard.members.map((m) => ({ name: m.name, count: m.count })),
+    'loans'
+  );
+}
+
 function escapeHtml(str) {
   const div = document.createElement('div');
   div.textContent = String(str);
@@ -399,20 +434,23 @@ function escapeHtml(str) {
 
 /* -------------------- data loading -------------------- */
 async function loadAll() {
-  const [books, customers, transactions, fines] = await Promise.all([
+  const [books, customers, transactions, fines, leaderboard] = await Promise.all([
     api('/api/books'),
     api('/api/customers'),
     api('/api/transactions'),
     api('/api/transactions/fines'),
+    api('/api/transactions/leaderboard'),
   ]);
   state.books = books;
   state.customers = customers;
   state.transactions = transactions;
   state.fines = fines.outstanding;
+  state.leaderboard = leaderboard;
   renderBooks();
   renderCustomers();
   renderTransactions();
   renderStats();
+  renderLeaderboard();
 }
 
 /* -------------------- search -------------------- */

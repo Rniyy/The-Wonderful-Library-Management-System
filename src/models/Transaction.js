@@ -94,6 +94,36 @@ const Transaction = {
       return sum + Math.round(daysLate(book) * FINE_RATE * 100) / 100;
     }, 0);
   },
+
+  /** Top borrowed books and most active members, ranked by number of ISSUE events. */
+  leaderboard(limit = 5) {
+    const issues = store.all().filter((t) => t.type === 'ISSUE');
+
+    const bookCounts = new Map();
+    const customerCounts = new Map();
+    for (const t of issues) {
+      bookCounts.set(t.bookId, (bookCounts.get(t.bookId) || 0) + 1);
+      customerCounts.set(t.customerId, (customerCounts.get(t.customerId) || 0) + 1);
+    }
+
+    const topBooks = [...bookCounts.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, limit)
+      .map(([bookId, count]) => {
+        const book = Book.getById(bookId);
+        return { bookId, title: book ? book.title : `Book ${bookId}`, count };
+      });
+
+    const topMembers = [...customerCounts.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, limit)
+      .map(([customerId, count]) => {
+        const customer = Customer.getById(customerId);
+        return { customerId, name: customer ? customer.name : `Member ${customerId}`, count };
+      });
+
+    return { books: topBooks, members: topMembers };
+  },
 };
 
 module.exports = Transaction;

@@ -38,6 +38,10 @@ function register(router) {
   router.get('/api/transactions/fines', (req, res) => {
     sendJson(res, 200, { outstanding: Transaction.outstandingFines() });
   });
+
+  router.get('/api/transactions/leaderboard', (req, res) => {
+    sendJson(res, 200, Transaction.leaderboard());
+  });
 }
 
 module.exports = { register };
