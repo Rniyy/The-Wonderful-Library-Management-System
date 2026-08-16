@@ -1,4 +1,4 @@
-# The Wonderful Library — Management System
+# The Library — Circulation System
 
 A library management system with a REST API and a browser-based UI for
 tracking books, members, and circulation (issue/return) activity.
@@ -18,14 +18,21 @@ monolithic `.cpp` files.
 
 ## Tech stack
 
-Plain **Node.js** (built-in `http`, `fs` — no Express, no npm install step)
-on the backend, and **vanilla HTML/CSS/JS** on the frontend. Data is
-persisted as JSON files on disk. Zero dependencies means `git clone` and
-`node server.js` is the entire setup.
+Plain **Node.js** (built-in `http`, `fs`, and `node:sqlite` — no Express,
+no npm install step) on the backend, and **vanilla HTML/CSS/JS** on the
+frontend. Data is persisted in a real SQLite database via Node's built-in
+`node:sqlite` module (stable as of Node 22.5+, currently marked
+experimental upstream). Zero external dependencies means `git clone` and
+`node server.js` is the entire setup — no `npm install` step.
+
+If you're upgrading from an older copy of this project that used JSON
+files for storage, your existing `data/*.json` files are automatically
+imported into the new database the first time you start the server, then
+renamed to `*.json.migrated` as a backup.
 
 ## Getting started
 
-Requires Node.js 18+.
+Requires Node.js **22.5.0 or newer** (for `node:sqlite`).
 
 ```bash
 git clone <your-repo-url>
@@ -83,8 +90,7 @@ Optional: `PORT=4000 node server.js` to run on a different port.
 
 ## Where to take it next
 
-- Swap the JSON file store for a real database (SQLite is a drop-in choice
-  since `better-sqlite3` mirrors the synchronous `store.js` API)
-- Add due dates and fines
-- Add authentication so only staff can access the circulation desk
 - Add automated tests for the models and routes
+- Real user accounts instead of one shared staff password
+- Barcode scanning for faster checkout
+- Email/SMS due-date reminders

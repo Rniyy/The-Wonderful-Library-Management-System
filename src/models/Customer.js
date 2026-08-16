@@ -1,44 +1,41 @@
 'use strict';
 
-const { Store } = require('../data/store');
-const store = new Store('customers.json');
+const db = require('../data/db');
+
+const stmts = {
+  selectAll: db.prepare('SELECT * FROM customers ORDER BY id'),
+  selectById: db.prepare('SELECT * FROM customers WHERE id = ?'),
+  insert: db.prepare('INSERT INTO customers (name, email) VALUES (?, ?)'),
+  update: db.prepare('UPDATE customers SET name = ?, email = ? WHERE id = ?'),
+  remove: db.prepare('DELETE FROM customers WHERE id = ?'),
+};
 
 const Customer = {
   getAll() {
-    return store.all();
+    return stmts.selectAll.all();
   },
 
   getById(id) {
-    return store.all().find((c) => c.id === id) || null;
+    return stmts.selectById.get(id) || null;
   },
 
   create({ name, email }) {
-    const customers = store.all();
-    const customer = {
-      id: store.nextId(customers),
-      name: String(name).trim(),
-      email: email ? String(email).trim() : '',
-    };
-    customers.push(customer);
-    store.save(customers);
-    return customer;
+    const info = stmts.insert.run(String(name).trim(), email ? String(email).trim() : '');
+    return this.getById(info.lastInsertRowid);
   },
 
   update(id, changes) {
-    const customers = store.all();
-    const idx = customers.findIndex((c) => c.id === id);
-    if (idx === -1) return null;
-    customers[idx] = { ...customers[idx], ...changes, id };
-    store.save(customers);
-    return customers[idx];
+    const customer = this.getById(id);
+    if (!customer) return null;
+    const name = changes.name !== undefined ? changes.name : customer.name;
+    const email = changes.email !== undefined ? changes.email : customer.email;
+    stmts.update.run(name, email, id);
+    return this.getById(id);
   },
 
   remove(id) {
-    const customers = store.all();
-    const next = customers.filter((c) => c.id !== id);
-    const removed = next.length !== customers.length;
-    if (removed) store.save(next);
-    return removed;
+    const info = stmts.remove.run(id);
+    return info.changes > 0;
   },
 };
 

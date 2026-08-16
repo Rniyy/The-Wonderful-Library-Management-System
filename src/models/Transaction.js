@@ -1,12 +1,28 @@
 'use strict';
 
-const { Store } = require('../data/store');
+const db = require('../data/db');
 const Book = require('./Book');
 const Customer = require('./Customer');
 
-const store = new Store('transactions.json');
 const LOAN_DAYS = 14;
 const FINE_RATE = 0.25; // per day overdue
+
+const stmts = {
+  selectAll: db.prepare('SELECT * FROM transactions ORDER BY id DESC'),
+  insert: db.prepare(`
+    INSERT INTO transactions (book_id, customer_id, type, timestamp, due_date, was_overdue, late_days, fine_amount)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `),
+  selectById: db.prepare('SELECT * FROM transactions WHERE id = ?'),
+  countIssuesByBook: db.prepare(`
+    SELECT book_id AS bookId, COUNT(*) AS count FROM transactions
+    WHERE type = 'ISSUE' GROUP BY book_id ORDER BY count DESC LIMIT ?
+  `),
+  countIssuesByCustomer: db.prepare(`
+    SELECT customer_id AS customerId, COUNT(*) AS count FROM transactions
+    WHERE type = 'ISSUE' GROUP BY customer_id ORDER BY count DESC LIMIT ?
+  `),
+};
 
 function daysLate(dueDate) {
   if (!dueDate) return 0;
@@ -14,28 +30,37 @@ function daysLate(dueDate) {
   return Math.max(0, Math.ceil(ms / (24 * 60 * 60 * 1000)));
 }
 
+function rowToTransaction(row) {
+  return {
+    id: row.id,
+    bookId: row.book_id,
+    customerId: row.customer_id,
+    type: row.type,
+    timestamp: row.timestamp,
+    ...(row.due_date !== null ? { dueDate: row.due_date } : {}),
+    ...(row.was_overdue !== null ? { wasOverdue: Boolean(row.was_overdue) } : {}),
+    ...(row.late_days !== null ? { lateDays: row.late_days } : {}),
+    ...(row.fine_amount !== null ? { fineAmount: row.fine_amount } : {}),
+  };
+}
+
 const Transaction = {
   getAll() {
-    return store.all().sort((a, b) => b.id - a.id); // newest first
-  },
-
-  count() {
-    return store.all().length;
+    return stmts.selectAll.all().map(rowToTransaction);
   },
 
   _record(bookId, customerId, type, extra = {}) {
-    const transactions = store.all();
-    const transaction = {
-      id: store.nextId(transactions),
+    const info = stmts.insert.run(
       bookId,
       customerId,
       type,
-      timestamp: new Date().toISOString(),
-      ...extra,
-    };
-    transactions.push(transaction);
-    store.save(transactions);
-    return transaction;
+      new Date().toISOString(),
+      extra.dueDate ?? null,
+      extra.wasOverdue !== undefined ? (extra.wasOverdue ? 1 : 0) : null,
+      extra.lateDays ?? null,
+      extra.fineAmount ?? null
+    );
+    return rowToTransaction(stmts.selectById.get(info.lastInsertRowid));
   },
 
   /** Issues a copy of a book to a customer. Throws a {status, message} error on failure. */
@@ -108,30 +133,19 @@ const Transaction = {
 
   /** Top borrowed books and most active members, ranked by number of ISSUE events. */
   leaderboard(limit = 5) {
-    const issues = store.all().filter((t) => t.type === 'ISSUE');
+    const topBooks = stmts.countIssuesByBook.all(limit).map((row) => {
+      const book = Book.getById(row.bookId);
+      return { bookId: row.bookId, title: book ? book.title : `Book ${row.bookId}`, count: row.count };
+    });
 
-    const bookCounts = new Map();
-    const customerCounts = new Map();
-    for (const t of issues) {
-      bookCounts.set(t.bookId, (bookCounts.get(t.bookId) || 0) + 1);
-      customerCounts.set(t.customerId, (customerCounts.get(t.customerId) || 0) + 1);
-    }
-
-    const topBooks = [...bookCounts.entries()]
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, limit)
-      .map(([bookId, count]) => {
-        const book = Book.getById(bookId);
-        return { bookId, title: book ? book.title : `Book ${bookId}`, count };
-      });
-
-    const topMembers = [...customerCounts.entries()]
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, limit)
-      .map(([customerId, count]) => {
-        const customer = Customer.getById(customerId);
-        return { customerId, name: customer ? customer.name : `Member ${customerId}`, count };
-      });
+    const topMembers = stmts.countIssuesByCustomer.all(limit).map((row) => {
+      const customer = Customer.getById(row.customerId);
+      return {
+        customerId: row.customerId,
+        name: customer ? customer.name : `Member ${row.customerId}`,
+        count: row.count,
+      };
+    });
 
     return { books: topBooks, members: topMembers };
   },
