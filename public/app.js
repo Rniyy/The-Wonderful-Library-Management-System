@@ -432,6 +432,72 @@ function renderLeaderboard() {
   );
 }
 
+function renderAnalytics() {
+  const container = document.getElementById('analytics-chart');
+  const empty = document.getElementById('empty-analytics');
+  const DAYS = 14;
+
+  // Build the last 14 calendar days (oldest first) as YYYY-MM-DD keys.
+  const days = [];
+  for (let i = DAYS - 1; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    days.push(d.toISOString().slice(0, 10));
+  }
+
+  const issuedByDay = Object.fromEntries(days.map((d) => [d, 0]));
+  const returnedByDay = Object.fromEntries(days.map((d) => [d, 0]));
+  for (const t of state.transactions) {
+    const day = t.timestamp.slice(0, 10);
+    if (t.type === 'ISSUE' && day in issuedByDay) issuedByDay[day]++;
+    if (t.type === 'RETURN' && day in returnedByDay) returnedByDay[day]++;
+  }
+
+  const totalActivity = Object.values(issuedByDay).reduce((a, b) => a + b, 0)
+    + Object.values(returnedByDay).reduce((a, b) => a + b, 0);
+  empty.hidden = totalActivity > 0;
+  if (totalActivity === 0) {
+    container.innerHTML = '';
+    return;
+  }
+
+  const maxCount = Math.max(1, ...days.map((d) => Math.max(issuedByDay[d], returnedByDay[d])));
+  const width = 700;
+  const height = 200;
+  const padding = { top: 10, right: 10, bottom: 26, left: 10 };
+  const chartHeight = height - padding.top - padding.bottom;
+  const groupWidth = (width - padding.left - padding.right) / DAYS;
+  const barWidth = Math.min(14, groupWidth * 0.32);
+
+  const issueColor = 'var(--warm-dark)';
+  const returnColor = 'var(--accent-dark)';
+
+  const bars = days.map((day, i) => {
+    const groupX = padding.left + i * groupWidth;
+    const centerX = groupX + groupWidth / 2;
+    const issueH = (issuedByDay[day] / maxCount) * chartHeight;
+    const returnH = (returnedByDay[day] / maxCount) * chartHeight;
+    const baseY = padding.top + chartHeight;
+    const label = new Date(day + 'T00:00:00').toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+
+    return `
+      <g class="analytics-bar-group">
+        <title>${label}: ${issuedByDay[day]} issued, ${returnedByDay[day]} returned</title>
+        <rect x="${centerX - barWidth - 1}" y="${baseY - issueH}" width="${barWidth}" height="${Math.max(issueH, issuedByDay[day] > 0 ? 2 : 0)}" fill="${issueColor}" rx="2" />
+        <rect x="${centerX + 1}" y="${baseY - returnH}" width="${barWidth}" height="${Math.max(returnH, returnedByDay[day] > 0 ? 2 : 0)}" fill="${returnColor}" rx="2" />
+        ${i % 2 === 0 ? `<text x="${centerX}" y="${height - 6}" text-anchor="middle" class="analytics-axis-label">${label}</text>` : ''}
+      </g>
+    `;
+  }).join('');
+
+  container.innerHTML = `
+    <svg viewBox="0 0 ${width} ${height}" class="analytics-svg" preserveAspectRatio="xMidYMid meet">
+      <line x1="${padding.left}" y1="${padding.top + chartHeight}" x2="${width - padding.right}" y2="${padding.top + chartHeight}" class="analytics-axis-line" />
+      ${bars}
+    </svg>
+  `;
+}
+
 function escapeHtml(str) {
   const div = document.createElement('div');
   div.textContent = String(str);
@@ -457,6 +523,7 @@ async function loadAll() {
   renderTransactions();
   renderStats();
   renderLeaderboard();
+  renderAnalytics();
 }
 
 /* -------------------- search -------------------- */

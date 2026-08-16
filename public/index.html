@@ -48,6 +48,9 @@
     <button class="drawer-tab" data-tab="leaderboard" role="tab" aria-selected="false">
       <span class="drawer-label">Leaderboard</span>
     </button>
+    <button class="drawer-tab" data-tab="analytics" role="tab" aria-selected="false">
+      <span class="drawer-label">Analytics</span>
+    </button>
   </nav>
 
   <div class="stats-strip" id="stats-strip">
@@ -161,6 +164,21 @@
           <ol class="leaderboard-list" id="leaderboard-members"></ol>
           <p class="empty-note" id="empty-leaderboard-members" hidden>No circulation activity yet.</p>
         </div>
+      </div>
+    </section>
+
+    <!-- ANALYTICS -->
+    <section class="panel" id="panel-analytics" role="tabpanel">
+      <div class="analytics-card">
+        <div class="analytics-header">
+          <h2 class="leaderboard-heading">Circulation, last 14 days</h2>
+          <div class="analytics-legend">
+            <span class="legend-item"><span class="legend-dot legend-dot--issue"></span>Issued</span>
+            <span class="legend-item"><span class="legend-dot legend-dot--return"></span>Returned</span>
+          </div>
+        </div>
+        <div id="analytics-chart"></div>
+        <p class="empty-note" id="empty-analytics" hidden>No circulation activity yet.</p>
       </div>
     </section>
 
