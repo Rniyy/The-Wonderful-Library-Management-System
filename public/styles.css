@@ -168,6 +168,84 @@ body {
 .analytics-bar-group rect { transition: opacity 0.15s ease; }
 .analytics-bar-group:hover rect { opacity: 0.75; }
 
+/* -------------------- barcode scanning -------------------- */
+.input-with-scan {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.input-with-scan input { flex: 1; }
+.scan-btn {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface-alt);
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.scan-btn:hover { background: var(--accent-soft); color: var(--accent-dark); border-color: var(--accent); }
+
+.scanner-overlay {
+  position: fixed;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(51, 58, 52, 0.7);
+  z-index: 1300;
+  padding: 20px;
+}
+.scanner-overlay.is-visible { display: flex; }
+.scanner-card {
+  width: 100%;
+  max-width: 360px;
+  background: var(--surface);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-md);
+  padding: 20px;
+  text-align: center;
+}
+.scanner-title {
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--text);
+  margin: 0 0 14px;
+}
+.scanner-video-wrap {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: #1a1a1a;
+  margin-bottom: 12px;
+}
+.scanner-video-wrap video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.scanner-reticle {
+  position: absolute;
+  inset: 20%;
+  border: 2px solid rgba(255, 255, 255, 0.75);
+  border-radius: 8px;
+  pointer-events: none;
+}
+.scanner-status {
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+  color: var(--text-muted);
+  min-height: 1.2em;
+  margin: 0 0 14px;
+}
+
 /* -------------------- staff login -------------------- */
 .login-overlay {
   position: fixed;

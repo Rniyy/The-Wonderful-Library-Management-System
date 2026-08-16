@@ -13,6 +13,11 @@ monolithic `.cpp` files.
 - **Members** — enroll, list, and withdraw library members
 - **Circulation** — issue a book to a member, return it, and browse the
   full transaction ledger (newest first)
+- **Barcode scanning** — scan a book or member barcode with your device
+  camera to fill in the Book ID / Member ID fields at the circulation desk.
+  Uses the browser's built-in `BarcodeDetector` API (Chrome and Edge,
+  desktop and Android) \u2014 falls back to manual entry on browsers that
+  don't support it (Safari, Firefox)
 - Server-side validation: can't issue a book that's already out, can't
   return one that isn't, can't issue to an unknown member
 

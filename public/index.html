@@ -126,8 +126,22 @@
       <form class="entry-form" id="form-transaction">
         <h2>Circulation desk</h2>
         <div class="field-row">
-          <label>Book ID<input type="number" name="bookId" min="1" required /></label>
-          <label>Member ID<input type="number" name="customerId" min="1" required /></label>
+          <label>Book ID
+            <span class="input-with-scan">
+              <input type="number" name="bookId" min="1" required />
+              <button type="button" class="scan-btn" data-scan-target="bookId" aria-label="Scan book barcode">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7V4a1 1 0 011-1h3M17 3h3a1 1 0 011 1v3M21 17v3a1 1 0 01-1 1h-3M7 21H4a1 1 0 01-1-1v-3"/><line x1="7" y1="12" x2="17" y2="12"/></svg>
+              </button>
+            </span>
+          </label>
+          <label>Member ID
+            <span class="input-with-scan">
+              <input type="number" name="customerId" min="1" required />
+              <button type="button" class="scan-btn" data-scan-target="customerId" aria-label="Scan member barcode">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7V4a1 1 0 011-1h3M17 3h3a1 1 0 011 1v3M21 17v3a1 1 0 01-1 1h-3M7 21H4a1 1 0 01-1-1v-3"/><line x1="7" y1="12" x2="17" y2="12"/></svg>
+              </button>
+            </span>
+          </label>
           <div class="button-pair">
             <button type="submit" class="stamp-button" data-action="issue">Stamp Out</button>
             <button type="submit" class="stamp-button stamp-button--ghost" data-action="return">Stamp In</button>
@@ -185,6 +199,18 @@
   </main>
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <div class="scanner-overlay" id="scanner-overlay">
+    <div class="scanner-card">
+      <p class="scanner-title">Point camera at a barcode</p>
+      <div class="scanner-video-wrap">
+        <video id="scanner-video" autoplay playsinline muted></video>
+        <div class="scanner-reticle"></div>
+      </div>
+      <p class="scanner-status" id="scanner-status"></p>
+      <button type="button" class="stamp-button stamp-button--ghost" id="scanner-cancel">Cancel</button>
+    </div>
+  </div>
 
   <div class="stamp-overlay" id="stamp-overlay" aria-hidden="true">
     <div class="stamp-mark" id="stamp-mark">STAMPED</div>

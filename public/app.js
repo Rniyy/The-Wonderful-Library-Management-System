@@ -717,6 +717,80 @@ document.getElementById('export-csv').addEventListener('click', () => {
   showToast('Ledger exported.');
 });
 
+/* -------------------- barcode scanning -------------------- */
+const scannerOverlay = document.getElementById('scanner-overlay');
+const scannerVideo = document.getElementById('scanner-video');
+const scannerStatus = document.getElementById('scanner-status');
+let scannerStream = null;
+let scannerRAF = null;
+
+async function openScanner(targetName) {
+  scannerStatus.textContent = '';
+  scannerOverlay.classList.add('is-visible');
+
+  if (!('BarcodeDetector' in window)) {
+    scannerStatus.textContent =
+      "Barcode scanning isn't supported in this browser \u2014 try Chrome or Edge, or enter the number manually.";
+    return;
+  }
+
+  try {
+    scannerStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+    scannerVideo.srcObject = scannerStream;
+    await scannerVideo.play();
+
+    let formats;
+    try {
+      formats = await BarcodeDetector.getSupportedFormats();
+    } catch {
+      formats = ['qr_code', 'code_128', 'ean_13', 'upc_a'];
+    }
+    const detector = new BarcodeDetector({ formats });
+
+    const scanLoop = async () => {
+      if (!scannerOverlay.classList.contains('is-visible')) return;
+      try {
+        const barcodes = await detector.detect(scannerVideo);
+        if (barcodes.length > 0) {
+          const digits = barcodes[0].rawValue.replace(/[^0-9]/g, '');
+          if (digits) {
+            const input = document.querySelector(`#form-transaction [name="${targetName}"]`);
+            if (input) input.value = digits;
+            showToast(`Scanned: ${digits}`);
+            closeScanner();
+            return;
+          }
+        }
+      } catch {
+        // a failed detection on one frame is normal (blur, bad angle) — just try the next frame
+      }
+      scannerRAF = requestAnimationFrame(scanLoop);
+    };
+    scanLoop();
+  } catch (err) {
+    scannerStatus.textContent =
+      err.name === 'NotAllowedError'
+        ? 'Camera access was denied \u2014 allow camera permissions and try again.'
+        : 'Could not access the camera on this device.';
+  }
+}
+
+function closeScanner() {
+  scannerOverlay.classList.remove('is-visible');
+  if (scannerRAF) cancelAnimationFrame(scannerRAF);
+  scannerRAF = null;
+  if (scannerStream) {
+    scannerStream.getTracks().forEach((t) => t.stop());
+    scannerStream = null;
+  }
+  scannerVideo.srcObject = null;
+}
+
+document.querySelectorAll('.scan-btn').forEach((btn) => {
+  btn.addEventListener('click', () => openScanner(btn.dataset.scanTarget));
+});
+document.getElementById('scanner-cancel').addEventListener('click', closeScanner);
+
 loadAll().catch((err) => {
   if (!err.isAuthError) showToast(err.message, true);
 });
