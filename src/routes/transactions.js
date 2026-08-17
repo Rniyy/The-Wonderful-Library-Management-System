@@ -9,11 +9,11 @@ function register(router) {
   });
 
   router.post('/api/transactions/issue', (req, res) => {
-    const { bookId, customerId } = req.body;
+    const { bookId, customerId, branchId } = req.body;
     if (!bookId || !customerId) {
       return sendJson(res, 400, { error: 'bookId and customerId are required.' });
     }
-    const transaction = Transaction.issue(Number(bookId), Number(customerId));
+    const transaction = Transaction.issue(Number(bookId), Number(customerId), branchId ? Number(branchId) : undefined);
     sendJson(res, 201, transaction);
   });
 

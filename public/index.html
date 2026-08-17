@@ -51,6 +51,10 @@
     <button class="drawer-tab" data-tab="analytics" role="tab" aria-selected="false">
       <span class="drawer-label">Analytics</span>
     </button>
+    <button class="drawer-tab" data-tab="branches" role="tab" aria-selected="false">
+      <span class="drawer-label">Branches</span>
+      <span class="drawer-count" id="count-branches">0</span>
+    </button>
   </nav>
 
   <div class="stats-strip" id="stats-strip">
@@ -78,6 +82,7 @@
           <label>Title<input type="text" name="title" placeholder="The Left Hand of Darkness" required /></label>
           <label>Author<input type="text" name="author" placeholder="Ursula K. Le Guin" /></label>
           <label class="copies-field">Copies<input type="number" name="copies" min="1" max="999" value="1" /></label>
+          <label class="branch-field">Branch<select name="branchId" id="book-branch-select"></select></label>
         </div>
         <div class="field-row">
           <label class="cover-field">
@@ -142,6 +147,9 @@
               </button>
             </span>
           </label>
+          <label class="branch-field">Issuing branch
+            <select name="branchId" id="desk-branch-select"></select>
+          </label>
           <div class="button-pair">
             <button type="submit" class="stamp-button" data-action="issue">Stamp Out</button>
             <button type="submit" class="stamp-button stamp-button--ghost" data-action="return">Stamp In</button>
@@ -194,6 +202,22 @@
         <div id="analytics-chart"></div>
         <p class="empty-note" id="empty-analytics" hidden>No circulation activity yet.</p>
       </div>
+    </section>
+
+    <!-- BRANCHES -->
+    <section class="panel" id="panel-branches" role="tabpanel">
+      <form class="entry-form" id="form-branch">
+        <h2>Add a branch</h2>
+        <div class="field-row">
+          <label>Name<input type="text" name="name" placeholder="Downtown Branch" required /></label>
+          <label>Address<input type="text" name="address" placeholder="optional" /></label>
+          <button type="submit" class="stamp-button">Add Branch</button>
+        </div>
+        <p class="form-error" id="error-branch" role="alert"></p>
+      </form>
+
+      <div class="card-grid" id="grid-branches"></div>
+      <p class="empty-note" id="empty-branches" hidden>No branches yet.</p>
     </section>
 
   </main>

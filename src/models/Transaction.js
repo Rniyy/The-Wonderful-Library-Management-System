@@ -64,27 +64,24 @@ const Transaction = {
   },
 
   /** Issues a copy of a book to a customer. Throws a {status, message} error on failure. */
-  issue(bookId, customerId) {
+  issue(bookId, customerId, branchId) {
     const book = Book.getById(bookId);
     if (!book) throw { status: 404, message: `Book ${bookId} not found.` };
 
     const customer = Customer.getById(customerId);
     if (!customer) throw { status: 404, message: `Customer ${customerId} not found.` };
 
-    if (Book.availableCount(book) === 0) {
-      throw { status: 409, message: `No copies of "${book.title}" are available.` };
-    }
-
     const holds = book.holds || [];
     if (holds.length > 0 && holds[0] !== customerId) {
       throw { status: 409, message: `This book is reserved for another member.` };
     }
+
+    const dueDate = new Date(Date.now() + LOAN_DAYS * 24 * 60 * 60 * 1000).toISOString();
+    Book.issueCopy(bookId, customerId, dueDate, branchId); // throws its own branch-specific message if none available
+
     if (holds.length > 0 && holds[0] === customerId) {
       Book.shiftHold(bookId);
     }
-
-    const dueDate = new Date(Date.now() + LOAN_DAYS * 24 * 60 * 60 * 1000).toISOString();
-    Book.issueCopy(bookId, customerId, dueDate);
     return this._record(bookId, customerId, 'ISSUE', { dueDate });
   },
 

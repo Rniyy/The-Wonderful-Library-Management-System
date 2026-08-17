@@ -15,11 +15,18 @@ function register(router) {
   });
 
   router.post('/api/books', (req, res) => {
-    const { title, author, cover, copies } = req.body;
+    const { title, author, cover, copies, branchId } = req.body;
     if (!title || !String(title).trim()) {
       return sendJson(res, 400, { error: 'Title is required.' });
     }
-    const book = Book.create({ title, author, cover, copies });
+    const book = Book.create({ title, author, cover, copies, branchId });
+    sendJson(res, 201, Book.withStats(book));
+  });
+
+  router.post('/api/books/:id/copies', (req, res) => {
+    const { branchId, count } = req.body;
+    if (!branchId) return sendJson(res, 400, { error: 'branchId is required.' });
+    const book = Book.addCopies(Number(req.params.id), Number(branchId), Number(count) || 1);
     sendJson(res, 201, Book.withStats(book));
   });
 

@@ -261,6 +261,13 @@ function renderBooks() {
       <h3>${escapeHtml(book.title)}</h3>
       <p class="card-sub">${escapeHtml(book.author || 'Unknown author')}</p>
       <span class="status-stamp ${statusClass}">${statusLabel}</span>
+      ${book.branchAvailability && book.branchAvailability.length > 1 ? `
+        <div class="branch-breakdown">
+          ${book.branchAvailability.map((b) => `
+            <span class="branch-chip">${escapeHtml(b.branchName)}: ${b.available}/${b.total}</span>
+          `).join('')}
+        </div>
+      ` : ''}
       ${due ? `
         <div class="due-badge due-${due.tier}">
           <span class="due-dot"></span>${due.label}
@@ -432,6 +439,72 @@ function renderLeaderboard() {
   );
 }
 
+function renderBranches() {
+  const grid = document.getElementById('grid-branches');
+  const empty = document.getElementById('empty-branches');
+  document.getElementById('count-branches').textContent = state.branches.length;
+
+  grid.innerHTML = '';
+  empty.hidden = state.branches.length > 0;
+
+  state.branches.forEach((branch, i) => {
+    const card = document.createElement('article');
+    card.className = 'index-card';
+    card.style.animationDelay = `${Math.min(i, 12) * 35}ms`;
+    card.innerHTML = `
+      <span class="spine" style="background:${spineColorFor(branch.id, branch.name)}"></span>
+      <p class="card-id">BRANCH ${String(branch.id).padStart(4, '0')}</p>
+      <h3>${escapeHtml(branch.name)}</h3>
+      <p class="card-sub">${escapeHtml(branch.address || 'No address on file')}</p>
+      <div class="card-actions">
+        <button data-remove-branch="${branch.id}">Remove</button>
+      </div>
+    `;
+    grid.appendChild(card);
+  });
+}
+
+function populateBranchSelects() {
+  const selects = [document.getElementById('book-branch-select'), document.getElementById('desk-branch-select')];
+  for (const select of selects) {
+    const previous = select.value;
+    select.innerHTML = state.branches
+      .map((b) => `<option value="${b.id}">${escapeHtml(b.name)}</option>`)
+      .join('');
+    if (state.branches.some((b) => String(b.id) === previous)) select.value = previous;
+  }
+}
+
+document.getElementById('form-branch').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const errorEl = document.getElementById('error-branch');
+  errorEl.textContent = '';
+  const form = e.target;
+  const name = form.name.value.trim();
+  const address = form.address.value.trim();
+
+  try {
+    await api('/api/branches', { method: 'POST', body: JSON.stringify({ name, address }) });
+    form.reset();
+    showToast('Branch added.');
+    await loadAll();
+  } catch (err) {
+    errorEl.textContent = err.message;
+  }
+});
+
+document.getElementById('grid-branches').addEventListener('click', async (e) => {
+  const id = e.target.dataset.removeBranch;
+  if (!id) return;
+  try {
+    await api(`/api/branches/${id}`, { method: 'DELETE' });
+    showToast('Branch removed.');
+    await loadAll();
+  } catch (err) {
+    showToast(err.message, true);
+  }
+});
+
 function renderAnalytics() {
   const container = document.getElementById('analytics-chart');
   const empty = document.getElementById('empty-analytics');
@@ -506,24 +579,28 @@ function escapeHtml(str) {
 
 /* -------------------- data loading -------------------- */
 async function loadAll() {
-  const [books, customers, transactions, fines, leaderboard] = await Promise.all([
+  const [books, customers, transactions, fines, leaderboard, branches] = await Promise.all([
     api('/api/books'),
     api('/api/customers'),
     api('/api/transactions'),
     api('/api/transactions/fines'),
     api('/api/transactions/leaderboard'),
+    api('/api/branches'),
   ]);
   state.books = books;
   state.customers = customers;
   state.transactions = transactions;
   state.fines = fines.outstanding;
   state.leaderboard = leaderboard;
+  state.branches = branches;
   renderBooks();
   renderCustomers();
   renderTransactions();
   renderStats();
   renderLeaderboard();
   renderAnalytics();
+  renderBranches();
+  populateBranchSelects();
 }
 
 /* -------------------- search -------------------- */
@@ -563,11 +640,12 @@ document.getElementById('form-book').addEventListener('submit', async (e) => {
   const title = form.title.value.trim();
   const author = form.author.value.trim();
   const copies = form.copies.value ? Number(form.copies.value) : 1;
+  const branchId = form.branchId.value ? Number(form.branchId.value) : undefined;
 
   try {
     await api('/api/books', {
       method: 'POST',
-      body: JSON.stringify({ title, author, cover: pendingCoverDataUrl, copies }),
+      body: JSON.stringify({ title, author, cover: pendingCoverDataUrl, copies, branchId }),
     });
     form.reset();
     pendingCoverDataUrl = null;
@@ -607,6 +685,7 @@ document.getElementById('form-transaction').addEventListener('submit', async (e)
   const action = e.submitter?.dataset.action || 'issue';
   const bookId = Number(form.bookId.value);
   const customerId = Number(form.customerId.value);
+  const branchId = form.branchId.value ? Number(form.branchId.value) : undefined;
 
   try {
     if (action === 'hold') {
@@ -623,14 +702,22 @@ document.getElementById('form-transaction').addEventListener('submit', async (e)
       });
       form.reset();
       showToast('Renewed \u2014 due date extended.');
+    } else if (action === 'issue') {
+      await api('/api/transactions/issue', {
+        method: 'POST',
+        body: JSON.stringify({ bookId, customerId, branchId }),
+      });
+      form.reset();
+      playStamp('ISSUE');
+      showToast('Stamped out.');
     } else {
       await api(`/api/transactions/${action}`, {
         method: 'POST',
         body: JSON.stringify({ bookId, customerId }),
       });
       form.reset();
-      playStamp(action === 'issue' ? 'ISSUE' : 'RETURN');
-      showToast(action === 'issue' ? 'Stamped out.' : 'Stamped in.');
+      playStamp('RETURN');
+      showToast('Stamped in.');
     }
     await loadAll();
   } catch (err) {

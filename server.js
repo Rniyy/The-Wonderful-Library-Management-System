@@ -10,6 +10,7 @@ const bookRoutes = require('./src/routes/books');
 const customerRoutes = require('./src/routes/customers');
 const transactionRoutes = require('./src/routes/transactions');
 const authRoutes = require('./src/routes/login');
+const branchRoutes = require('./src/routes/branches');
 const { isValidSession, parseCookies } = require('./src/auth');
 
 const PORT = process.env.PORT || 3000;
@@ -30,6 +31,7 @@ authRoutes.register(router);
 bookRoutes.register(router);
 customerRoutes.register(router);
 transactionRoutes.register(router);
+branchRoutes.register(router);
 
 // Every /api/* route requires a valid session except login itself.
 // Static files (including index.html) stay public — the frontend shows

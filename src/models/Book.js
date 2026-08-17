@@ -1,6 +1,9 @@
 'use strict';
 
 const db = require('../data/db');
+const Branch = require('./Branch');
+
+const { DEFAULT_BRANCH_ID } = db;
 
 const stmts = {
   selectBook: db.prepare('SELECT * FROM books WHERE id = ?'),
@@ -10,10 +13,15 @@ const stmts = {
   deleteBook: db.prepare('DELETE FROM books WHERE id = ?'),
 
   selectCopies: db.prepare('SELECT * FROM copies WHERE book_id = ? ORDER BY copy_number'),
-  insertCopy: db.prepare('INSERT INTO copies (book_id, copy_number, is_issued, due_date, customer_id) VALUES (?, ?, 0, NULL, NULL)'),
+  insertCopy: db.prepare(
+    'INSERT INTO copies (book_id, copy_number, is_issued, due_date, customer_id, branch_id) VALUES (?, ?, 0, NULL, NULL, ?)'
+  ),
   updateCopy: db.prepare('UPDATE copies SET is_issued = ?, due_date = ?, customer_id = ? WHERE id = ?'),
-  findAvailableCopy: db.prepare('SELECT * FROM copies WHERE book_id = ? AND is_issued = 0 ORDER BY copy_number LIMIT 1'),
+  findAvailableCopyAtBranch: db.prepare(
+    'SELECT * FROM copies WHERE book_id = ? AND branch_id = ? AND is_issued = 0 ORDER BY copy_number LIMIT 1'
+  ),
   findIssuedCopyForCustomer: db.prepare('SELECT * FROM copies WHERE book_id = ? AND is_issued = 1 AND customer_id = ?'),
+  maxCopyNumber: db.prepare('SELECT COALESCE(MAX(copy_number), 0) AS maxNum FROM copies WHERE book_id = ?'),
 
   selectHolds: db.prepare('SELECT customer_id FROM holds WHERE book_id = ? ORDER BY position'),
   maxHoldPosition: db.prepare('SELECT COALESCE(MAX(position), -1) AS maxPos FROM holds WHERE book_id = ?'),
@@ -28,6 +36,7 @@ function composeBook(row) {
     isIssued: Boolean(c.is_issued),
     dueDate: c.due_date,
     customerId: c.customer_id,
+    branchId: c.branch_id,
   }));
   const holds = stmts.selectHolds.all(row.id).map((h) => h.customer_id);
   return {
@@ -49,8 +58,9 @@ const Book = {
     return composeBook(stmts.selectBook.get(id));
   },
 
-  create({ title, author, cover, copies }) {
+  create({ title, author, cover, copies, branchId }) {
     const copyCount = Math.min(Math.max(Number(copies) || 1, 1), 999);
+    const resolvedBranchId = branchId ? Number(branchId) : DEFAULT_BRANCH_ID;
     const info = stmts.insertBook.run(
       String(title).trim(),
       String(author || 'Unknown').trim(),
@@ -58,9 +68,23 @@ const Book = {
     );
     const bookId = info.lastInsertRowid;
     for (let i = 1; i <= copyCount; i++) {
-      stmts.insertCopy.run(bookId, i);
+      stmts.insertCopy.run(bookId, i, resolvedBranchId);
     }
     return this.getById(bookId);
+  },
+
+  /** Adds more copies of an existing title at a given branch. Throws a {status, message} error on failure. */
+  addCopies(id, branchId, count) {
+    const book = this.getById(id);
+    if (!book) throw { status: 404, message: `Book ${id} not found.` };
+    const branch = Branch.getById(Number(branchId));
+    if (!branch) throw { status: 404, message: `Branch ${branchId} not found.` };
+    const addCount = Math.min(Math.max(Number(count) || 1, 1), 999);
+    let nextNum = stmts.maxCopyNumber.get(id).maxNum + 1;
+    for (let i = 0; i < addCount; i++) {
+      stmts.insertCopy.run(id, nextNum++, branch.id);
+    }
+    return this.getById(id);
   },
 
   update(id, changes) {
@@ -92,7 +116,12 @@ const Book = {
     return book.copies.filter((c) => !c.isIssued).length;
   },
 
-  /** Attaches computed fields (counts, soonest due date) for API responses. Doesn't mutate storage. */
+  availableCountAtBranch(book, branchId) {
+    return book.copies.filter((c) => !c.isIssued && c.branchId === Number(branchId)).length;
+  },
+
+  /** Attaches computed fields (counts, soonest due date, per-branch breakdown) for API responses.
+   *  Doesn't mutate storage. */
   withStats(book) {
     const total = book.copies.length;
     const available = this.availableCount(book);
@@ -101,15 +130,36 @@ const Book = {
       ? issuedCopies.reduce((min, c) => (!min || c.dueDate < min ? c.dueDate : min), null)
       : null;
     const anyOverdue = issuedCopies.some((c) => this.isCopyOverdue(c));
-    return { ...book, totalCopies: total, availableCopies: available, nextDueDate, anyOverdue };
+
+    const branches = Branch.getAll();
+    const branchAvailability = branches
+      .map((b) => {
+        const copiesHere = book.copies.filter((c) => c.branchId === b.id);
+        return {
+          branchId: b.id,
+          branchName: b.name,
+          total: copiesHere.length,
+          available: copiesHere.filter((c) => !c.isIssued).length,
+        };
+      })
+      .filter((b) => b.total > 0);
+
+    return { ...book, totalCopies: total, availableCopies: available, nextDueDate, anyOverdue, branchAvailability };
   },
 
-  /** Marks the first available copy as issued. Throws a {status, message} error on failure. */
-  issueCopy(id, customerId, dueDate) {
+  /** Marks the first available copy at a branch as issued. Throws a {status, message} error on failure. */
+  issueCopy(id, customerId, dueDate, branchId) {
     const book = this.getById(id);
     if (!book) throw { status: 404, message: `Book ${id} not found.` };
-    const copyRow = stmts.findAvailableCopy.get(id);
-    if (!copyRow) throw { status: 409, message: `No copies of "${book.title}" are available.` };
+    const resolvedBranchId = branchId ? Number(branchId) : DEFAULT_BRANCH_ID;
+    const copyRow = stmts.findAvailableCopyAtBranch.get(id, resolvedBranchId);
+    if (!copyRow) {
+      const branch = Branch.getById(resolvedBranchId);
+      throw {
+        status: 409,
+        message: `No copies of "${book.title}" are available at ${branch ? branch.name : 'that branch'}.`,
+      };
+    }
     stmts.updateCopy.run(1, dueDate, customerId, copyRow.id);
     return this.getById(id);
   },
