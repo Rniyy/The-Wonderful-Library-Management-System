@@ -579,13 +579,14 @@ function escapeHtml(str) {
 
 /* -------------------- data loading -------------------- */
 async function loadAll() {
-  const [books, customers, transactions, fines, leaderboard, branches] = await Promise.all([
+  const [books, customers, transactions, fines, leaderboard, branches, reminders] = await Promise.all([
     api('/api/books'),
     api('/api/customers'),
     api('/api/transactions'),
     api('/api/transactions/fines'),
     api('/api/transactions/leaderboard'),
     api('/api/branches'),
+    api('/api/reminders/due'),
   ]);
   state.books = books;
   state.customers = customers;
@@ -593,6 +594,7 @@ async function loadAll() {
   state.fines = fines.outstanding;
   state.leaderboard = leaderboard;
   state.branches = branches;
+  state.reminders = reminders;
   renderBooks();
   renderCustomers();
   renderTransactions();
@@ -601,6 +603,7 @@ async function loadAll() {
   renderAnalytics();
   renderBranches();
   populateBranchSelects();
+  renderReminders();
 }
 
 /* -------------------- search -------------------- */
@@ -769,6 +772,54 @@ function csvEscape(value) {
   const str = String(value ?? '');
   return /[",\n]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str;
 }
+
+function renderReminders() {
+  const list = document.getElementById('reminders-list');
+  const status = document.getElementById('reminders-status');
+  if (!state.reminders) return;
+
+  const { due, webhookConfigured } = state.reminders;
+  list.innerHTML = '';
+
+  if (due.length === 0) {
+    status.textContent = webhookConfigured
+      ? 'Nothing due soon or overdue right now.'
+      : 'Nothing due soon or overdue right now. (No delivery method configured \u2014 sends will log locally only.)';
+    return;
+  }
+
+  status.textContent = webhookConfigured
+    ? `${due.length} member${due.length === 1 ? '' : 's'} to notify.`
+    : `${due.length} member${due.length === 1 ? '' : 's'} to notify. No delivery method configured \u2014 sends will log locally only, not actually reach anyone.`;
+
+  for (const r of due) {
+    const li = document.createElement('li');
+    li.className = 'reminder-item';
+    li.innerHTML = `
+      <span class="reminder-kind reminder-kind--${r.kind}">${r.kind === 'overdue' ? 'Overdue' : 'Due soon'}</span>
+      <span class="reminder-text">${escapeHtml(r.bookTitle)} \u2014 ${escapeHtml(r.customerName)}</span>
+      <span class="reminder-email">${r.customerEmail ? escapeHtml(r.customerEmail) : 'no email on file'}</span>
+    `;
+    list.appendChild(li);
+  }
+}
+
+document.getElementById('send-reminders-btn').addEventListener('click', async () => {
+  const btn = document.getElementById('send-reminders-btn');
+  const original = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Checking\u2026';
+  try {
+    const summary = await api('/api/reminders/send', { method: 'POST' });
+    showToast(`Sent ${summary.sent}, skipped ${summary.skipped} (already sent today).`);
+    await loadAll();
+  } catch (err) {
+    showToast(err.message, true);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = original;
+  }
+});
 
 document.getElementById('export-csv').addEventListener('click', () => {
   if (state.transactions.length === 0) {

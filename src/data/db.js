@@ -62,9 +62,19 @@ db.exec(`
     fine_amount REAL
   );
 
+  CREATE TABLE IF NOT EXISTS reminders_sent (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    book_id INTEGER NOT NULL,
+    customer_id INTEGER NOT NULL,
+    kind TEXT NOT NULL,
+    sent_date TEXT NOT NULL,
+    sent_at TEXT NOT NULL
+  );
+
   CREATE INDEX IF NOT EXISTS idx_copies_book ON copies(book_id);
   CREATE INDEX IF NOT EXISTS idx_holds_book ON holds(book_id, position);
   CREATE INDEX IF NOT EXISTS idx_transactions_book ON transactions(book_id);
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_reminders_dedup ON reminders_sent(book_id, customer_id, kind, sent_date);
 `);
 
 // Defensive migration for databases created by an earlier version of this

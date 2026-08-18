@@ -16,8 +16,12 @@ monolithic `.cpp` files.
 - **Barcode scanning** — scan a book or member barcode with your device
   camera to fill in the Book ID / Member ID fields at the circulation desk.
   Uses the browser's built-in `BarcodeDetector` API (Chrome and Edge,
-  desktop and Android) \u2014 falls back to manual entry on browsers that
+  desktop and Android) — falls back to manual entry on browsers that
   don't support it (Safari, Firefox)
+- **Due-date reminders** — checks once a day (and once at startup) for
+  loans due soon or overdue, and notifies the member. Logs locally by
+  default; set `REMINDER_WEBHOOK_URL` to actually deliver email/SMS (see
+  below)
 - Server-side validation: can't issue a book that's already out, can't
   return one that isn't, can't issue to an unknown member
 
@@ -77,25 +81,56 @@ Optional: `PORT=4000 node server.js` to run on a different port.
 
 ## API reference
 
-| Method | Path                        | Description                     |
-|--------|------------------------------|----------------------------------|
-| GET    | `/api/books`                 | List all books                  |
-| GET    | `/api/books/:id`             | Get one book                    |
-| POST   | `/api/books`                 | Add a book `{ title, author }`  |
-| PUT    | `/api/books/:id`             | Update a book                   |
-| DELETE | `/api/books/:id`             | Remove a book                   |
-| GET    | `/api/customers`             | List all members                |
-| GET    | `/api/customers/:id`         | Get one member                  |
-| POST   | `/api/customers`             | Add a member `{ name, email }`  |
-| PUT    | `/api/customers/:id`         | Update a member                 |
-| DELETE | `/api/customers/:id`         | Remove a member                 |
-| GET    | `/api/transactions`          | List all transactions           |
-| POST   | `/api/transactions/issue`    | Issue `{ bookId, customerId }`  |
-| POST   | `/api/transactions/return`   | Return `{ bookId, customerId }` |
+| Method | Path                              | Description                              |
+|--------|-------------------------------------|-------------------------------------------|
+| GET    | `/api/books`                       | List all books (with copy/branch stats)  |
+| GET    | `/api/books/:id`                   | Get one book                             |
+| POST   | `/api/books`                       | Add a book `{ title, author, cover, copies, branchId }` |
+| PUT    | `/api/books/:id`                   | Update a book                            |
+| DELETE | `/api/books/:id`                   | Remove a book (blocked if a copy is out) |
+| POST   | `/api/books/:id/copies`            | Add copies at a branch `{ branchId, count }` |
+| POST   | `/api/books/:id/holds`             | Place a hold `{ customerId }`            |
+| DELETE | `/api/books/:id/holds/:customerId` | Cancel a hold                            |
+| GET    | `/api/customers`                   | List all members                         |
+| GET    | `/api/customers/:id`               | Get one member                           |
+| POST   | `/api/customers`                   | Add a member `{ name, email }`           |
+| PUT    | `/api/customers/:id`               | Update a member                          |
+| DELETE | `/api/customers/:id`                | Remove a member                          |
+| GET    | `/api/branches`                    | List all branches                        |
+| POST   | `/api/branches`                    | Add a branch `{ name, address }`         |
+| DELETE | `/api/branches/:id`                | Remove a branch (blocked while it holds copies) |
+| GET    | `/api/transactions`                | List all transactions (newest first)     |
+| POST   | `/api/transactions/issue`          | Issue `{ bookId, customerId, branchId }` |
+| POST   | `/api/transactions/return`         | Return `{ bookId, customerId }`          |
+| POST   | `/api/transactions/renew`          | Renew `{ bookId, customerId }`           |
+| GET    | `/api/transactions/fines`          | Total outstanding fines                  |
+| GET    | `/api/transactions/leaderboard`    | Top borrowed books / most active members |
+| GET    | `/api/reminders/due`               | Preview what's due soon or overdue       |
+| POST   | `/api/reminders/send`              | Send reminders for everything due now    |
+| POST   | `/api/login`                       | Sign in `{ password }`                   |
+| POST   | `/api/logout`                      | Sign out                                 |
+
+## Due-date reminders
+
+The server checks once a day (and once shortly after startup) for loans
+due soon or overdue, and sends one reminder per member per day for each.
+By default this just logs to `data/reminders.log` and the console — it
+doesn't reach anyone. To actually deliver email or SMS, set:
+
+```
+REMINDER_WEBHOOK_URL=https://your-webhook-url node server.js
+```
+
+Each due/overdue loan gets POSTed as JSON to that URL. Point it at a
+Zapier, Make, or n8n webhook (no code needed on your end), or write a
+small function of your own that receives the JSON and calls a real email
+API (SendGrid, Postmark, etc.) or SMS API (Twilio). You can also trigger
+a check on demand from the **Check & Send Now** button on the Circulation
+tab.
 
 ## Where to take it next
 
 - Add automated tests for the models and routes
 - Real user accounts instead of one shared staff password
-- Barcode scanning for faster checkout
-- Email/SMS due-date reminders
+- A cron-based reminder check instead of (or alongside) the in-process
+  daily timer, for deployments where the server isn't always running

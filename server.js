@@ -11,6 +11,8 @@ const customerRoutes = require('./src/routes/customers');
 const transactionRoutes = require('./src/routes/transactions');
 const authRoutes = require('./src/routes/login');
 const branchRoutes = require('./src/routes/branches');
+const reminderRoutes = require('./src/routes/reminders');
+const Reminder = require('./src/models/Reminder');
 const { isValidSession, parseCookies } = require('./src/auth');
 
 const PORT = process.env.PORT || 3000;
@@ -32,6 +34,7 @@ bookRoutes.register(router);
 customerRoutes.register(router);
 transactionRoutes.register(router);
 branchRoutes.register(router);
+reminderRoutes.register(router);
 
 // Every /api/* route requires a valid session except login itself.
 // Static files (including index.html) stay public — the frontend shows
@@ -78,3 +81,20 @@ const server = http.createServer(async (req, res) => {
 server.listen(PORT, () => {
   console.log(`Library Management System running at http://localhost:${PORT}`);
 });
+
+// Check for due/overdue books once a day automatically (and once shortly
+// after startup, in case the server was down when today's check would have
+// run). This only matters while the process stays running — see the README
+// for a cron-based alternative if you'd rather not keep it up 24/7.
+const DAY_MS = 24 * 60 * 60 * 1000;
+function runReminderCheck() {
+  Reminder.sendDueReminders()
+    .then((summary) => {
+      if (summary.checked > 0) {
+        console.log(`[reminder] checked ${summary.checked}, sent ${summary.sent}, skipped ${summary.skipped} (already sent today)`);
+      }
+    })
+    .catch((err) => console.error('[reminder] check failed:', err.message));
+}
+setTimeout(runReminderCheck, 10_000); // give the server a moment to finish starting up
+setInterval(runReminderCheck, DAY_MS);
