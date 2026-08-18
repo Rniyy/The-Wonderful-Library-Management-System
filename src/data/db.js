@@ -5,11 +5,12 @@ const fs = require('fs');
 const path = require('path');
 
 const DATA_DIR = path.join(__dirname, '..', '..', 'data');
-const DB_PATH = path.join(DATA_DIR, 'library.db');
+const DB_PATH = process.env.LIBRARY_DB_PATH || path.join(DATA_DIR, 'library.db');
+const IS_MEMORY = DB_PATH === ':memory:';
 
-if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+if (!IS_MEMORY && !fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 
-const dbAlreadyExisted = fs.existsSync(DB_PATH);
+const dbAlreadyExisted = !IS_MEMORY && fs.existsSync(DB_PATH);
 const db = new DatabaseSync(DB_PATH);
 db.exec('PRAGMA foreign_keys = ON');
 
@@ -100,8 +101,9 @@ const DEFAULT_BRANCH_ID = ensureDefaultBranch();
 db.prepare('UPDATE copies SET branch_id = ? WHERE branch_id IS NULL').run(DEFAULT_BRANCH_ID);
 
 // One-time migration: if this is a fresh database but the old JSON store has
-// data, import it so nobody loses their catalog by upgrading.
-if (!dbAlreadyExisted) {
+// data, import it so nobody loses their catalog by upgrading. Skipped for
+// in-memory test databases — tests shouldn't pick up real data/*.json files.
+if (!dbAlreadyExisted && !IS_MEMORY) {
   migrateFromJsonIfPresent();
 }
 

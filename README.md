@@ -54,6 +54,16 @@ on first run under `data/`.
 
 Optional: `PORT=4000 node server.js` to run on a different port.
 
+## Running the tests
+
+```bash
+npm test
+```
+
+Uses Node's built-in test runner (`node --test`) — no dependencies to
+install. Tests run against an isolated in-memory database, so they never
+touch your real `data/library.db`.
+
 ## Project structure
 
 ```
@@ -130,7 +140,8 @@ tab.
 
 ## Where to take it next
 
-- Add automated tests for the models and routes
 - Real user accounts instead of one shared staff password
 - A cron-based reminder check instead of (or alongside) the in-process
   daily timer, for deployments where the server isn't always running
+- Test coverage for the routes layer (currently the models are covered;
+  the HTTP routes and auth middleware aren't)
