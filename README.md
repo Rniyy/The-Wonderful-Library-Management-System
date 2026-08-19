@@ -68,23 +68,34 @@ touch your real `data/library.db`.
 
 ```
 .
-├── server.js                 # entry point — HTTP server, static files, routing
+├── server.js                 # entry point — HTTP server, static files, routing, daily reminder timer
 ├── src/
-│   ├── router.js              # tiny dependency-free router (params, JSON bodies)
+│   ├── auth.js                 # session management
+│   ├── router.js                # tiny dependency-free router (params, JSON bodies)
 │   ├── models/
-│   │   ├── Book.js
+│   │   ├── Book.js               # books + copies + holds
+│   │   ├── Branch.js
 │   │   ├── Customer.js
-│   │   └── Transaction.js     # also orchestrates issue/return across models
+│   │   ├── Reminder.js
+│   │   ├── Staff.js               # staff accounts (hashed passwords)
+│   │   └── Transaction.js        # also orchestrates issue/return across models
 │   ├── routes/
 │   │   ├── books.js
+│   │   ├── branches.js
 │   │   ├── customers.js
+│   │   ├── login.js
+│   │   ├── reminders.js
+│   │   ├── staff.js
 │   │   └── transactions.js
+│   ├── notifications/
+│   │   └── notifier.js           # pluggable reminder delivery (local log / webhook)
 │   └── data/
-│       └── store.js           # JSON file persistence
+│       └── db.js                 # SQLite setup + JSON/schema migrations
 ├── public/                    # frontend (served as static files)
 │   ├── index.html
 │   ├── styles.css
 │   └── app.js
+├── tests/                     # node --test suite (models)
 ├── data/                      # generated at runtime (gitignored)
 └── legacy-cpp/                # original console version, kept for history
 ```
@@ -117,8 +128,12 @@ touch your real `data/library.db`.
 | GET    | `/api/transactions/leaderboard`    | Top borrowed books / most active members |
 | GET    | `/api/reminders/due`               | Preview what's due soon or overdue       |
 | POST   | `/api/reminders/send`              | Send reminders for everything due now    |
-| POST   | `/api/login`                       | Sign in `{ password }`                   |
+| GET    | `/api/staff`                       | List staff accounts                      |
+| POST   | `/api/staff`                       | Add a staff account `{ username, password }` |
+| DELETE | `/api/staff/:id`                   | Remove a staff account (not your own, not the last one) |
+| POST   | `/api/login`                       | Sign in `{ username, password }`         |
 | POST   | `/api/logout`                      | Sign out                                 |
+| GET    | `/api/me`                          | Current signed-in staff account          |
 
 ## Due-date reminders
 
@@ -138,10 +153,37 @@ API (SendGrid, Postmark, etc.) or SMS API (Twilio). You can also trigger
 a check on demand from the **Check & Send Now** button on the Circulation
 tab.
 
+## Staff accounts
+
+Every `/api/*` endpoint requires a signed-in staff account — the catalog,
+members, and ledger can't be read or changed without logging in. On a
+fresh install, a default account is created automatically:
+
+```
+username: admin
+password: library
+```
+
+The server prints a warning at startup if you're still using this
+default. **Change it before deploying anywhere real** — sign in, go to
+the **Staff** tab, add a real account for yourself, and remove the
+default one (you can't remove the account you're currently signed in
+as, so add your own first, sign in as that, then remove `admin`).
+
+To set a different default on first run instead (useful for scripted
+deploys), set both before starting the server the very first time:
+
+```
+STAFF_USERNAME=yourname STAFF_PASSWORD=your-real-password node server.js
+```
+
+These only take effect when no staff accounts exist yet — they won't
+touch an install that's already been set up.
+
 ## Where to take it next
 
-- Real user accounts instead of one shared staff password
 - A cron-based reminder check instead of (or alongside) the in-process
   daily timer, for deployments where the server isn't always running
 - Test coverage for the routes layer (currently the models are covered;
   the HTTP routes and auth middleware aren't)
+- Role-based permissions (e.g. only some staff can remove accounts)

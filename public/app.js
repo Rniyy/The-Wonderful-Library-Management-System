@@ -1,6 +1,6 @@
 'use strict';
 
-const state = { books: [], customers: [], transactions: [] };
+const state = { books: [], customers: [], transactions: [], editingStaffId: null };
 const search = { books: '', customers: '' };
 const prevStats = {};
 let pendingCoverDataUrl = null;
@@ -182,6 +182,7 @@ function hideLoginOverlay() {
 document.getElementById('login-form').addEventListener('submit', async (e) => {
   e.preventDefault();
   const errorEl = document.getElementById('login-error');
+  const usernameInput = document.getElementById('login-username');
   const passwordInput = document.getElementById('login-password');
   errorEl.textContent = '';
 
@@ -189,7 +190,7 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
     const res = await fetch('/api/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password: passwordInput.value }),
+      body: JSON.stringify({ username: usernameInput.value, password: passwordInput.value }),
     });
     const data = await res.json().catch(() => null);
     if (!res.ok) throw new Error((data && data.error) || 'Sign-in failed.');
@@ -208,6 +209,8 @@ document.getElementById('logout-btn').addEventListener('click', async () => {
   } catch {
     // ignore network errors on logout — show the login screen regardless
   }
+  state.me = null;
+  renderSignedInAs();
   showLoginOverlay();
 });
 
@@ -439,6 +442,124 @@ function renderLeaderboard() {
   );
 }
 
+function renderSignedInAs() {
+  const el = document.getElementById('signed-in-as');
+  el.textContent = state.me ? `Signed in as ${state.me.username}` : '';
+}
+
+function renderStaff() {
+  const grid = document.getElementById('grid-staff');
+  const empty = document.getElementById('empty-staff');
+  document.getElementById('count-staff').textContent = state.staff.length;
+
+  grid.innerHTML = '';
+  empty.hidden = state.staff.length > 0;
+
+  state.staff.forEach((s, i) => {
+    const isSelf = state.me && state.me.id === s.id;
+    const isEditing = state.editingStaffId === s.id;
+    const card = document.createElement('article');
+    card.className = 'index-card';
+    card.style.animationDelay = `${Math.min(i, 12) * 35}ms`;
+
+    if (isEditing) {
+      card.innerHTML = `
+        <span class="spine" style="background:${spineColorFor(s.id, s.username)}"></span>
+        <p class="card-id">STAFF ${String(s.id).padStart(4, '0')}</p>
+        <div class="staff-edit-form">
+          <label>Username<input type="text" class="staff-edit-username" value="${escapeHtml(s.username)}" /></label>
+          <label>New password<input type="password" class="staff-edit-password" placeholder="leave blank to keep current" /></label>
+          <p class="form-error" id="error-staff-edit-${s.id}"></p>
+          <div class="card-actions">
+            <button data-save-staff="${s.id}" class="card-actions--renew">Save</button>
+            <button data-cancel-edit-staff="${s.id}">Cancel</button>
+          </div>
+        </div>
+      `;
+    } else {
+      card.innerHTML = `
+        <span class="spine" style="background:${spineColorFor(s.id, s.username)}"></span>
+        <p class="card-id">STAFF ${String(s.id).padStart(4, '0')}</p>
+        <h3>${escapeHtml(s.username)}${isSelf ? ' <span class="you-tag">You</span>' : ''}</h3>
+        <p class="card-sub">Added ${new Date(s.createdAt).toLocaleDateString()}</p>
+        <div class="card-actions">
+          <button data-edit-staff="${s.id}" class="card-actions--renew">Edit</button>
+          ${!isSelf ? `<button data-remove-staff="${s.id}">Remove</button>` : ''}
+        </div>
+      `;
+    }
+    grid.appendChild(card);
+  });
+}
+
+document.getElementById('form-staff').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const errorEl = document.getElementById('error-staff');
+  errorEl.textContent = '';
+  const form = e.target;
+  const username = form.username.value.trim();
+  const password = form.password.value;
+
+  try {
+    await api('/api/staff', { method: 'POST', body: JSON.stringify({ username, password }) });
+    form.reset();
+    showToast('Staff account added.');
+    await loadAll();
+  } catch (err) {
+    errorEl.textContent = err.message;
+  }
+});
+
+document.getElementById('grid-staff').addEventListener('click', async (e) => {
+  const editId = e.target.dataset.editStaff;
+  const cancelId = e.target.dataset.cancelEditStaff;
+  const saveId = e.target.dataset.saveStaff;
+  const removeId = e.target.dataset.removeStaff;
+
+  if (editId) {
+    state.editingStaffId = Number(editId);
+    renderStaff();
+    return;
+  }
+
+  if (cancelId) {
+    state.editingStaffId = null;
+    renderStaff();
+    return;
+  }
+
+  if (saveId) {
+    const id = Number(saveId);
+    const card = e.target.closest('.index-card');
+    const username = card.querySelector('.staff-edit-username').value.trim();
+    const password = card.querySelector('.staff-edit-password').value;
+    const errorEl = document.getElementById(`error-staff-edit-${id}`);
+    errorEl.textContent = '';
+
+    const payload = { username };
+    if (password) payload.password = password;
+
+    try {
+      await api(`/api/staff/${id}`, { method: 'PUT', body: JSON.stringify(payload) });
+      state.editingStaffId = null;
+      showToast('Staff account updated.');
+      await loadAll();
+    } catch (err) {
+      errorEl.textContent = err.message;
+    }
+    return;
+  }
+
+  if (!removeId) return;
+  try {
+    await api(`/api/staff/${removeId}`, { method: 'DELETE' });
+    showToast('Staff account removed.');
+    await loadAll();
+  } catch (err) {
+    showToast(err.message, true);
+  }
+});
+
 function renderBranches() {
   const grid = document.getElementById('grid-branches');
   const empty = document.getElementById('empty-branches');
@@ -579,7 +700,7 @@ function escapeHtml(str) {
 
 /* -------------------- data loading -------------------- */
 async function loadAll() {
-  const [books, customers, transactions, fines, leaderboard, branches, reminders] = await Promise.all([
+  const [books, customers, transactions, fines, leaderboard, branches, reminders, staff, me] = await Promise.all([
     api('/api/books'),
     api('/api/customers'),
     api('/api/transactions'),
@@ -587,6 +708,8 @@ async function loadAll() {
     api('/api/transactions/leaderboard'),
     api('/api/branches'),
     api('/api/reminders/due'),
+    api('/api/staff'),
+    api('/api/me'),
   ]);
   state.books = books;
   state.customers = customers;
@@ -595,6 +718,8 @@ async function loadAll() {
   state.leaderboard = leaderboard;
   state.branches = branches;
   state.reminders = reminders;
+  state.staff = staff;
+  state.me = me.staff;
   renderBooks();
   renderCustomers();
   renderTransactions();
@@ -604,6 +729,8 @@ async function loadAll() {
   renderBranches();
   populateBranchSelects();
   renderReminders();
+  renderStaff();
+  renderSignedInAs();
 }
 
 /* -------------------- search -------------------- */

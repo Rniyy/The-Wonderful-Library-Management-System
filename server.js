@@ -12,6 +12,7 @@ const transactionRoutes = require('./src/routes/transactions');
 const authRoutes = require('./src/routes/login');
 const branchRoutes = require('./src/routes/branches');
 const reminderRoutes = require('./src/routes/reminders');
+const staffRoutes = require('./src/routes/accounts');
 const Reminder = require('./src/models/Reminder');
 const { isValidSession, parseCookies } = require('./src/auth');
 
@@ -35,6 +36,7 @@ customerRoutes.register(router);
 transactionRoutes.register(router);
 branchRoutes.register(router);
 reminderRoutes.register(router);
+staffRoutes.register(router);
 
 // Every /api/* route requires a valid session except login itself.
 // Static files (including index.html) stay public — the frontend shows

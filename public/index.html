@@ -14,8 +14,11 @@
     <form class="login-card" id="login-form">
       <p class="eyebrow">Staff sign-in</p>
       <h2>The Library</h2>
+      <label>Username
+        <input type="text" id="login-username" autocomplete="username" required autofocus />
+      </label>
       <label>Password
-        <input type="password" id="login-password" autocomplete="current-password" required autofocus />
+        <input type="password" id="login-password" autocomplete="current-password" required />
       </label>
       <button type="submit" class="stamp-button">Sign In</button>
       <p class="form-error" id="login-error" role="alert"></p>
@@ -28,6 +31,7 @@
       <p class="eyebrow">Est. locally &middot; Circulation System v2</p>
       <h1>The Library</h1>
       <p class="tagline">Catalog, members, and circulation — under one roof.</p>
+      <p class="signed-in-as" id="signed-in-as"></p>
       <button type="button" class="logout-button" id="logout-btn">Sign out</button>
     </div>
   </header>
@@ -54,6 +58,10 @@
     <button class="drawer-tab" data-tab="branches" role="tab" aria-selected="false">
       <span class="drawer-label">Branches</span>
       <span class="drawer-count" id="count-branches">0</span>
+    </button>
+    <button class="drawer-tab" data-tab="staff" role="tab" aria-selected="false">
+      <span class="drawer-label">Staff</span>
+      <span class="drawer-count" id="count-staff">0</span>
     </button>
   </nav>
 
@@ -229,6 +237,22 @@
 
       <div class="card-grid" id="grid-branches"></div>
       <p class="empty-note" id="empty-branches" hidden>No branches yet.</p>
+    </section>
+
+    <!-- STAFF -->
+    <section class="panel" id="panel-staff" role="tabpanel">
+      <form class="entry-form" id="form-staff">
+        <h2>Add a staff account</h2>
+        <div class="field-row">
+          <label>Username<input type="text" name="username" placeholder="jessy" required autocomplete="off" /></label>
+          <label>Password<input type="password" name="password" placeholder="at least 4 characters" required autocomplete="new-password" /></label>
+          <button type="submit" class="stamp-button">Add Account</button>
+        </div>
+        <p class="form-error" id="error-staff" role="alert"></p>
+      </form>
+
+      <div class="card-grid" id="grid-staff"></div>
+      <p class="empty-note" id="empty-staff" hidden>No staff accounts yet.</p>
     </section>
 
   </main>

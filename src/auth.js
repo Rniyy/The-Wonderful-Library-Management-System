@@ -2,38 +2,29 @@
 
 const crypto = require('crypto');
 
-// Staff password. Set STAFF_PASSWORD in your environment for real use —
-// this default is only here so the app runs out of the box.
-const STAFF_PASSWORD = process.env.STAFF_PASSWORD || 'library';
-if (!process.env.STAFF_PASSWORD) {
-  console.warn(
-    'Warning: using the default staff password ("library"). ' +
-    'Set STAFF_PASSWORD in your environment before deploying this anywhere real.'
-  );
-}
-
 const SESSION_TTL_MS = 12 * 60 * 60 * 1000; // 12 hours
-const sessions = new Map(); // token -> expiresAt
+const sessions = new Map(); // token -> { staffId, expiresAt }
 
-function checkPassword(password) {
-  return typeof password === 'string' && password === STAFF_PASSWORD;
-}
-
-function createSession() {
+function createSession(staffId) {
   const token = crypto.randomBytes(24).toString('hex');
-  sessions.set(token, Date.now() + SESSION_TTL_MS);
+  sessions.set(token, { staffId, expiresAt: Date.now() + SESSION_TTL_MS });
   return token;
 }
 
 function isValidSession(token) {
-  if (!token) return false;
-  const expiresAt = sessions.get(token);
-  if (!expiresAt) return false;
-  if (Date.now() > expiresAt) {
+  return Boolean(getSessionStaffId(token));
+}
+
+/** Returns the staff id for a valid session token, or null if missing/expired. */
+function getSessionStaffId(token) {
+  if (!token) return null;
+  const session = sessions.get(token);
+  if (!session) return null;
+  if (Date.now() > session.expiresAt) {
     sessions.delete(token);
-    return false;
+    return null;
   }
-  return true;
+  return session.staffId;
 }
 
 function destroySession(token) {
@@ -54,4 +45,4 @@ function parseCookies(req) {
   return cookies;
 }
 
-module.exports = { checkPassword, createSession, isValidSession, destroySession, parseCookies };
+module.exports = { createSession, isValidSession, getSessionStaffId, destroySession, parseCookies };
