@@ -182,8 +182,21 @@ STAFF_USERNAME=yourname STAFF_PASSWORD=your-real-password node server.js
 These only take effect when no staff accounts exist yet — they won't
 touch an install that's already been set up.
 
+Accounts have two roles: **admin** (can manage other staff accounts —
+create, edit, remove, change roles) and **staff** (everything else —
+catalog, members, circulation, branches, reminders). Everyone can edit
+their own username and password regardless of role. The system won't let
+the last admin be demoted or removed, so you can't lock yourself out.
+
+### Login rate limiting
+
+`/api/login` locks out an IP address for 15 minutes after 5 failed
+attempts within a 5-minute window, to slow down password guessing. A
+successful login clears the count. This is in-memory and per-process —
+it resets if you restart the server, and if you run multiple server
+instances behind a load balancer, each one tracks independently.
+
 ## Where to take it next
 
 - A cron-based reminder check instead of (or alongside) the in-process
   daily timer, for deployments where the server isn't always running
-- Rate limiting on `/api/login` to slow down password-guessing attempts
