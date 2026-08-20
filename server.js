@@ -79,10 +79,6 @@ const server = http.createServer(async (req, res) => {
   serveStatic(req, res, pathname);
 });
 
-server.listen(PORT, () => {
-  console.log(`Library Management System running at http://localhost:${PORT}`);
-});
-
 // Check for due/overdue books once a day automatically (and once shortly
 // after startup, in case the server was down when today's check would have
 // run). This only matters while the process stays running — see the README
@@ -97,5 +93,24 @@ function runReminderCheck() {
     })
     .catch((err) => console.error('[reminder] check failed:', err.message));
 }
-setTimeout(runReminderCheck, 10_000); // give the server a moment to finish starting up
-setInterval(runReminderCheck, DAY_MS);
+
+function startReminderScheduler() {
+  // unref() so these timers never keep the process alive on their own —
+  // matters for tests that close the server and expect the process to be
+  // able to exit; harmless in production since the listening socket already
+  // keeps a real server running regardless.
+  setTimeout(runReminderCheck, 10_000).unref(); // give the server a moment to finish starting up
+  setInterval(runReminderCheck, DAY_MS).unref();
+}
+
+// Only auto-start when run directly (`node server.js` / `npm start`) — not
+// when required by the test suite, which wants to control its own port and
+// lifecycle.
+if (require.main === module) {
+  server.listen(PORT, () => {
+    console.log(`Library Management System running at http://localhost:${PORT}`);
+  });
+  startReminderScheduler();
+}
+
+module.exports = { server, startReminderScheduler };

@@ -62,7 +62,9 @@ npm test
 
 Uses Node's built-in test runner (`node --test`) — no dependencies to
 install. Tests run against an isolated in-memory database, so they never
-touch your real `data/library.db`.
+touch your real `data/library.db`. Covers both the models directly and
+the HTTP routes layer (real requests against a real server instance on a
+random port, including auth enforcement and error handling).
 
 ## Project structure
 
@@ -184,6 +186,4 @@ touch an install that's already been set up.
 
 - A cron-based reminder check instead of (or alongside) the in-process
   daily timer, for deployments where the server isn't always running
-- Test coverage for the routes layer (currently the models are covered;
-  the HTTP routes and auth middleware aren't)
-- Role-based permissions (e.g. only some staff can remove accounts)
+- Rate limiting on `/api/login` to slow down password-guessing attempts
