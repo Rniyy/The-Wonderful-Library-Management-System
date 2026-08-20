@@ -246,6 +246,12 @@
         <div class="field-row">
           <label>Username<input type="text" name="username" placeholder="jessy" required autocomplete="off" /></label>
           <label>Password<input type="password" name="password" placeholder="at least 4 characters" required autocomplete="new-password" /></label>
+          <label class="branch-field">Role
+            <select name="role">
+              <option value="staff">Staff</option>
+              <option value="admin">Admin</option>
+            </select>
+          </label>
           <button type="submit" class="stamp-button">Add Account</button>
         </div>
         <p class="form-error" id="error-staff" role="alert"></p>
