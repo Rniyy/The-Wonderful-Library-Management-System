@@ -377,6 +377,29 @@ body {
 }
 .staff-edit-form input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .staff-edit-form .form-error { margin: 0; }
+.staff-edit-form select {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface-alt);
+  color: var(--text);
+}
+
+.role-badge {
+  display: inline-block;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  border-radius: 999px;
+  padding: 1px 8px;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+.role-badge--admin { background: var(--amber-soft); color: var(--amber-dark); }
+.role-badge--staff { background: var(--surface-alt); color: var(--text-faint); border: 1px solid var(--border); }
 
 /* -------------------- decorative rail (removed in the clean layout) -------------------- */
 .drawer-rail { display: none; }

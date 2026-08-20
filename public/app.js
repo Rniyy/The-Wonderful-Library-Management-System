@@ -452,6 +452,9 @@ function renderStaff() {
   const empty = document.getElementById('empty-staff');
   document.getElementById('count-staff').textContent = state.staff.length;
 
+  const isAdmin = state.me && state.me.role === 'admin';
+  document.getElementById('form-staff').hidden = !isAdmin;
+
   grid.innerHTML = '';
   empty.hidden = state.staff.length > 0;
 
@@ -469,6 +472,14 @@ function renderStaff() {
         <div class="staff-edit-form">
           <label>Username<input type="text" class="staff-edit-username" value="${escapeHtml(s.username)}" /></label>
           <label>New password<input type="password" class="staff-edit-password" placeholder="leave blank to keep current" /></label>
+          ${isAdmin ? `
+            <label>Role
+              <select class="staff-edit-role">
+                <option value="staff" ${s.role === 'staff' ? 'selected' : ''}>Staff</option>
+                <option value="admin" ${s.role === 'admin' ? 'selected' : ''}>Admin</option>
+              </select>
+            </label>
+          ` : ''}
           <p class="form-error" id="error-staff-edit-${s.id}"></p>
           <div class="card-actions">
             <button data-save-staff="${s.id}" class="card-actions--renew">Save</button>
@@ -481,10 +492,13 @@ function renderStaff() {
         <span class="spine" style="background:${spineColorFor(s.id, s.username)}"></span>
         <p class="card-id">STAFF ${String(s.id).padStart(4, '0')}</p>
         <h3>${escapeHtml(s.username)}${isSelf ? ' <span class="you-tag">You</span>' : ''}</h3>
-        <p class="card-sub">Added ${new Date(s.createdAt).toLocaleDateString()}</p>
+        <p class="card-sub">
+          <span class="role-badge role-badge--${s.role}">${s.role === 'admin' ? 'Admin' : 'Staff'}</span>
+          Added ${new Date(s.createdAt).toLocaleDateString()}
+        </p>
         <div class="card-actions">
-          <button data-edit-staff="${s.id}" class="card-actions--renew">Edit</button>
-          ${!isSelf ? `<button data-remove-staff="${s.id}">Remove</button>` : ''}
+          ${isSelf || isAdmin ? `<button data-edit-staff="${s.id}" class="card-actions--renew">Edit</button>` : ''}
+          ${!isSelf && isAdmin ? `<button data-remove-staff="${s.id}">Remove</button>` : ''}
         </div>
       `;
     }
@@ -499,9 +513,10 @@ document.getElementById('form-staff').addEventListener('submit', async (e) => {
   const form = e.target;
   const username = form.username.value.trim();
   const password = form.password.value;
+  const role = form.role.value;
 
   try {
-    await api('/api/staff', { method: 'POST', body: JSON.stringify({ username, password }) });
+    await api('/api/staff', { method: 'POST', body: JSON.stringify({ username, password, role }) });
     form.reset();
     showToast('Staff account added.');
     await loadAll();
@@ -533,11 +548,13 @@ document.getElementById('grid-staff').addEventListener('click', async (e) => {
     const card = e.target.closest('.index-card');
     const username = card.querySelector('.staff-edit-username').value.trim();
     const password = card.querySelector('.staff-edit-password').value;
+    const roleSelect = card.querySelector('.staff-edit-role');
     const errorEl = document.getElementById(`error-staff-edit-${id}`);
     errorEl.textContent = '';
 
     const payload = { username };
     if (password) payload.password = password;
+    if (roleSelect) payload.role = roleSelect.value;
 
     try {
       await api(`/api/staff/${id}`, { method: 'PUT', body: JSON.stringify(payload) });

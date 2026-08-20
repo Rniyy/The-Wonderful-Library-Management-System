@@ -67,6 +67,7 @@ db.exec(`
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     username TEXT NOT NULL UNIQUE,
     password_hash TEXT NOT NULL,
+    role TEXT NOT NULL DEFAULT 'staff',
     created_at TEXT NOT NULL
   );
 
@@ -94,6 +95,16 @@ function ensureColumn(table, column, definition) {
   }
 }
 ensureColumn('copies', 'branch_id', 'branch_id INTEGER REFERENCES branches(id)');
+ensureColumn('staff', 'role', "role TEXT NOT NULL DEFAULT 'staff'");
+
+// If no admin exists at all (a fresh table default, or every admin account
+// somehow got removed), promote the earliest account so nobody's locked
+// out of staff management. Only fires when there are zero admins — doesn't
+// undo a deliberate demotion as long as at least one admin remains.
+const adminCount = db.prepare("SELECT COUNT(*) AS n FROM staff WHERE role = 'admin'").get().n;
+if (adminCount === 0) {
+  db.exec(`UPDATE staff SET role = 'admin' WHERE id = (SELECT MIN(id) FROM staff)`);
+}
 
 // Every install needs at least one branch to assign copies to.
 function ensureDefaultBranch() {

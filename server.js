@@ -3,7 +3,6 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
-const url = require('url');
 
 const { Router, sendJson } = require('./src/router');
 const bookRoutes = require('./src/routes/books');
@@ -65,7 +64,7 @@ function serveStatic(req, res, urlPath) {
 }
 
 const server = http.createServer(async (req, res) => {
-  const { pathname } = url.parse(req.url);
+  const { pathname } = new URL(req.url, 'http://localhost');
   req.cookies = parseCookies(req);
 
   if (pathname.startsWith('/api/') && !PUBLIC_API_PATHS.has(pathname)) {
