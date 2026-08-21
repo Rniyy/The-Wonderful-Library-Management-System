@@ -131,8 +131,11 @@ random port, including auth enforcement and error handling).
 | GET    | `/api/reminders/due`               | Preview what's due soon or overdue       |
 | POST   | `/api/reminders/send`              | Send reminders for everything due now    |
 | GET    | `/api/staff`                       | List staff accounts                      |
-| POST   | `/api/staff`                       | Add a staff account `{ username, password }` |
-| DELETE | `/api/staff/:id`                   | Remove a staff account (not your own, not the last one) |
+| POST   | `/api/staff`                       | Add a staff account `{ username, password, role }` — admin only |
+| PUT    | `/api/staff/:id`                   | Edit an account — self, or any account if admin |
+| DELETE | `/api/staff/:id`                   | Remove a staff account — admin only, not your own, not the last admin |
+| GET    | `/api/backup`                      | Download a full database backup — admin only |
+| POST   | `/api/backup/restore`              | Restore from an uploaded backup file — admin only, requires a server restart to take effect |
 | POST   | `/api/login`                       | Sign in `{ username, password }`         |
 | POST   | `/api/logout`                      | Sign out                                 |
 | GET    | `/api/me`                          | Current signed-in staff account          |
@@ -195,6 +198,23 @@ attempts within a 5-minute window, to slow down password guessing. A
 successful login clears the count. This is in-memory and per-process —
 it resets if you restart the server, and if you run multiple server
 instances behind a load balancer, each one tracks independently.
+
+### Backup & restore
+
+From the **Staff** tab (admin only):
+
+- **Download Backup** produces a complete, consistent snapshot of the
+  database (using SQLite's `VACUUM INTO`, which is safe to run even
+  while the server is live and being written to) and downloads it as a
+  `.db` file.
+- **Restore from file** uploads a previous backup. It's validated (real
+  SQLite file, has the expected tables, passes an integrity check)
+  before anything changes, and the database that was live gets copied
+  to `data/library.db.pre-restore-<timestamp>` first as a safety net.
+  **The server needs to be restarted afterward** for the restored data
+  to actually take effect — the live process keeps using its existing
+  in-memory connection until then, by design, rather than risk swapping
+  a database out from under active requests.
 
 ## Where to take it next
 

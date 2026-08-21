@@ -202,3 +202,6 @@ function migrateFromJsonIfPresent() {
 
 module.exports = db;
 module.exports.DEFAULT_BRANCH_ID = DEFAULT_BRANCH_ID;
+module.exports.DB_PATH = DB_PATH;
+module.exports.DATA_DIR = DATA_DIR;
+module.exports.IS_MEMORY = IS_MEMORY;

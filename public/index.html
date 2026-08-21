@@ -259,6 +259,23 @@
 
       <div class="card-grid" id="grid-staff"></div>
       <p class="empty-note" id="empty-staff" hidden>No staff accounts yet.</p>
+
+      <div class="backup-card" id="backup-card" hidden>
+        <h2 class="leaderboard-heading">Backup &amp; restore</h2>
+        <p class="reminders-status">
+          Download a complete snapshot of the database, or restore from a
+          previous one. Admin only.
+        </p>
+        <div class="backup-actions">
+          <button type="button" class="export-button" id="download-backup-btn">Download Backup</button>
+          <label class="restore-upload">
+            Restore from file
+            <input type="file" id="restore-file-input" accept=".db" />
+          </label>
+        </div>
+        <p class="form-error" id="error-backup" role="alert"></p>
+        <p class="backup-status" id="backup-status"></p>
+      </div>
     </section>
 
   </main>

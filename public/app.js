@@ -454,6 +454,7 @@ function renderStaff() {
 
   const isAdmin = state.me && state.me.role === 'admin';
   document.getElementById('form-staff').hidden = !isAdmin;
+  document.getElementById('backup-card').hidden = !isAdmin;
 
   grid.innerHTML = '';
   empty.hidden = state.staff.length > 0;
@@ -997,6 +998,83 @@ document.getElementById('export-csv').addEventListener('click', () => {
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
   showToast('Ledger exported.');
+});
+
+/* -------------------- backup & restore -------------------- */
+document.getElementById('download-backup-btn').addEventListener('click', async () => {
+  const btn = document.getElementById('download-backup-btn');
+  const errorEl = document.getElementById('error-backup');
+  const statusEl = document.getElementById('backup-status');
+  errorEl.textContent = '';
+  statusEl.textContent = '';
+  const original = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Preparing\u2026';
+
+  try {
+    const res = await fetch('/api/backup');
+    if (!res.ok) {
+      const data = await res.json().catch(() => null);
+      throw new Error((data && data.error) || `Backup failed (${res.status})`);
+    }
+    const blob = await res.blob();
+    const disposition = res.headers.get('Content-Disposition') || '';
+    const match = disposition.match(/filename="([^"]+)"/);
+    const filename = match ? match[1] : `library-backup-${new Date().toISOString().slice(0, 10)}.db`;
+
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    statusEl.textContent = 'Backup downloaded.';
+  } catch (err) {
+    errorEl.textContent = err.message;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = original;
+  }
+});
+
+document.getElementById('restore-file-input').addEventListener('change', async (e) => {
+  const input = e.target;
+  const file = input.files[0];
+  const errorEl = document.getElementById('error-backup');
+  const statusEl = document.getElementById('backup-status');
+  errorEl.textContent = '';
+  statusEl.textContent = '';
+  if (!file) return;
+
+  const confirmed = window.confirm(
+    `Restore the database from "${file.name}"?\n\n` +
+    'The current database will be replaced (a safety copy is kept), and you\u2019ll need to restart ' +
+    'the server for the restored data to take effect. This cannot be undone from here.'
+  );
+  if (!confirmed) {
+    input.value = '';
+    return;
+  }
+
+  statusEl.textContent = 'Uploading\u2026';
+  try {
+    const res = await fetch('/api/backup/restore', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/octet-stream' },
+      body: file,
+    });
+    const data = await res.json().catch(() => null);
+    if (!res.ok) throw new Error((data && data.error) || `Restore failed (${res.status})`);
+    statusEl.textContent = data.message || 'Restored. Restart the server for this to take effect.';
+    showToast('Database restored \u2014 restart the server to apply it.');
+  } catch (err) {
+    errorEl.textContent = err.message;
+    statusEl.textContent = '';
+  } finally {
+    input.value = '';
+  }
 });
 
 /* -------------------- barcode scanning -------------------- */
